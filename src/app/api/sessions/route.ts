@@ -31,6 +31,11 @@ export async function POST(req: NextRequest) {
       allowedLanguages = body.allowedLanguages.filter((l: any) => typeof l === "string");
     }
 
+    let systemInstruction: string | undefined = undefined;
+    if (typeof body.systemInstruction === "string" && body.systemInstruction.trim().length > 0) {
+      systemInstruction = body.systemInstruction.trim();
+    }
+
     const expectedPassword = process.env.BROADCAST_PASSWORD;
     if (expectedPassword && password !== expectedPassword) {
       return NextResponse.json(
@@ -65,7 +70,7 @@ export async function POST(req: NextRequest) {
       await manager.removeAllTranslations(sessionId);
     }
 
-    manager.createSession(sessionId, organizerIdentity, allowedLanguages);
+    manager.createSession(sessionId, organizerIdentity, allowedLanguages, systemInstruction);
 
     // Build the attendee join URL
     const protocol = req.headers.get("x-forwarded-proto") || "http";

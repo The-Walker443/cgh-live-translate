@@ -72,10 +72,11 @@ export class TranslationBridge {
   private readonly inputSampleRate: number = 48000; // LiveKit default
   private readonly channels: number = 1;
 
-  // LiveKit config
+    // LiveKit config
   private readonly livekitUrl: string;
   private readonly livekitApiKey: string;
   private readonly livekitApiSecret: string;
+  public readonly systemInstruction?: string;
 
   private geminiSetupComplete: boolean = false;
   private organizerIdentity: string;
@@ -91,6 +92,7 @@ export class TranslationBridge {
       livekitUrl: string;
       livekitApiKey: string;
       livekitApiSecret: string;
+      systemInstruction?: string;
     }
   ) {
     this.sessionId = sessionId;
@@ -101,6 +103,7 @@ export class TranslationBridge {
     this.livekitUrl = config.livekitUrl;
     this.livekitApiKey = config.livekitApiKey;
     this.livekitApiSecret = config.livekitApiSecret;
+    this.systemInstruction = config.systemInstruction;
   }
 
   async start(): Promise<void> {
@@ -428,6 +431,13 @@ export class TranslationBridge {
       setup: {
         model: `models/${this.geminiModel}`,
         outputAudioTranscription: {},
+        ...(this.systemInstruction
+          ? {
+              systemInstruction: {
+                parts: [{ text: this.systemInstruction }],
+              },
+            }
+          : {}),
         generationConfig: {
           responseModalities: ["AUDIO"],
           translationConfig: {

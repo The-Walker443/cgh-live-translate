@@ -37,6 +37,7 @@ export interface SessionInfo {
   organizerIdentity: string;
   createdAt: Date;
   allowedLanguages?: string[];
+  systemInstruction?: string;
 }
 
 const globalForSessionManager = global as unknown as {
@@ -63,16 +64,20 @@ class TranslationSessionManager {
   createSession(
     sessionId: string,
     organizerIdentity: string,
-    allowedLanguages?: string[]
+    allowedLanguages?: string[],
+    systemInstruction?: string
   ): SessionInfo {
     const info: SessionInfo = {
       sessionId,
       organizerIdentity,
       createdAt: new Date(),
       allowedLanguages,
+      systemInstruction,
     };
     this.sessions.set(sessionId, info);
-    console.log(`[SessionManager] Created session ${sessionId} for organizer ${organizerIdentity} with allowed languages: ${allowedLanguages?.join(", ") || "all"}`);
+    console.log(
+      `[SessionManager] Created session ${sessionId} for organizer ${organizerIdentity} with allowed languages: ${allowedLanguages?.join(", ") || "all"}${systemInstruction ? `, systemInstruction: "${systemInstruction.slice(0, 50)}..."` : ""}`
+    );
     return info;
   }
 
@@ -112,11 +117,14 @@ class TranslationSessionManager {
       `[SessionManager] Creating new bridge for ${targetLanguage} in session ${sessionId}`
     );
 
+    const session = this.getSession(sessionId);
+
     const config = {
       geminiApiKey: process.env.GEMINI_API_KEY!,
       livekitUrl: process.env.LIVEKIT_URL || "ws://localhost:7880",
       livekitApiKey: process.env.LIVEKIT_API_KEY!,
       livekitApiSecret: process.env.LIVEKIT_API_SECRET!,
+      systemInstruction: session?.systemInstruction,
     };
 
     const bridge = new TranslationBridge(
