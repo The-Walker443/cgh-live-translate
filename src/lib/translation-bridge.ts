@@ -54,6 +54,7 @@ export class TranslationBridge {
   private framesReceivedFromGemini: number = 0;
   private resumptionHandle: string | null = null;
   private isReconnecting: boolean = false;
+  private stopping: boolean = false;
   private pendingInterimText: string = "";
   private interimTimeout: NodeJS.Timeout | null = null;
 
@@ -132,6 +133,8 @@ export class TranslationBridge {
   }
 
   async stop(): Promise<void> {
+    if (this.status === "closed" || this.stopping) return;
+    this.stopping = true;
     console.log(
       `[TranslationBridge:${this.targetLanguage}] Stopping bridge`
     );
@@ -477,9 +480,6 @@ export class TranslationBridge {
         const update = message.sessionResumptionUpdate;
         if (update.resumable && update.newHandle) {
           this.resumptionHandle = update.newHandle;
-          console.log(
-            `[TranslationBridge:${this.targetLanguage}] Received sessionResumptionUpdate with newHandle: ${this.resumptionHandle}`
-          );
         }
       }
 

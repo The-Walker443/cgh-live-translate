@@ -333,8 +333,6 @@ function AttendeeView({ sessionId }: { sessionId: string }) {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
-      // Also fire on React unmount (e.g. navigation away)
-      handleBeforeUnload();
     };
   }, [sessionId]);
 

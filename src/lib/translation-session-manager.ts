@@ -185,7 +185,7 @@ class TranslationSessionManager {
     if (!languageMap) return;
 
     const bridge = languageMap.get(targetLanguage);
-    if (!bridge) return;
+    if (!bridge || bridge.status === "closed") return;
 
     bridge.subscriberCount = Math.max(0, bridge.subscriberCount - 1);
     console.log(
@@ -193,16 +193,15 @@ class TranslationSessionManager {
     );
 
     if (bridge.subscriberCount === 0) {
+      languageMap.delete(targetLanguage);
+      if (languageMap.size === 0) {
+        this.translations.delete(sessionId);
+      }
+
       console.log(
         `[SessionManager] No more subscribers for ${targetLanguage}, tearing down bridge`
       );
       await bridge.stop();
-      languageMap.delete(targetLanguage);
-
-      // Clean up the session map if no bridges remain
-      if (languageMap.size === 0) {
-        this.translations.delete(sessionId);
-      }
     }
   }
 
