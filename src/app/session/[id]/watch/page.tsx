@@ -333,6 +333,7 @@ function AttendeeView({ sessionId }: { sessionId: string }) {
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
+      handleBeforeUnload();
     };
   }, [sessionId]);
 

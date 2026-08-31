@@ -209,6 +209,7 @@ class TranslationSessionManager {
       console.log(
         `[SessionManager] No more subscribers for ${targetLanguage}, tearing down bridge`
       );
+      bridge.onStop = undefined;
       await bridge.stop();
     }
   }
@@ -222,6 +223,7 @@ class TranslationSessionManager {
 
     const bridge = languageMap.get(targetLanguage);
     if (bridge) {
+      bridge.onStop = undefined;
       await bridge.stop();
       languageMap.delete(targetLanguage);
       console.log(
@@ -234,6 +236,7 @@ class TranslationSessionManager {
     const languageMap = this.translations.get(sessionId);
     if (languageMap) {
       for (const [, bridge] of languageMap) {
+        bridge.onStop = undefined;
         await bridge.stop();
       }
       languageMap.clear();
