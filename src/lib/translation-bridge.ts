@@ -54,6 +54,7 @@ export class TranslationBridge {
   private framesReceivedFromGemini: number = 0;
   private resumptionHandle: string | null = null;
   private isReconnecting: boolean = false;
+  private stopping: boolean = false;
   private pendingInterimText: string = "";
   private interimTimeout: NodeJS.Timeout | null = null;
 
@@ -71,10 +72,11 @@ export class TranslationBridge {
   private readonly inputSampleRate: number = 48000; // LiveKit default
   private readonly channels: number = 1;
 
-  // LiveKit config
+    // LiveKit config
   private readonly livekitUrl: string;
   private readonly livekitApiKey: string;
   private readonly livekitApiSecret: string;
+  public readonly systemInstruction?: string;
 
   private geminiSetupComplete: boolean = false;
   private organizerIdentity: string;
@@ -90,6 +92,7 @@ export class TranslationBridge {
       livekitUrl: string;
       livekitApiKey: string;
       livekitApiSecret: string;
+      systemInstruction?: string;
     }
   ) {
     this.sessionId = sessionId;
@@ -100,6 +103,7 @@ export class TranslationBridge {
     this.livekitUrl = config.livekitUrl;
     this.livekitApiKey = config.livekitApiKey;
     this.livekitApiSecret = config.livekitApiSecret;
+    this.systemInstruction = config.systemInstruction;
   }
 
   async start(): Promise<void> {
@@ -132,6 +136,8 @@ export class TranslationBridge {
   }
 
   async stop(): Promise<void> {
+    if (this.status === "closed" || this.stopping) return;
+    this.stopping = true;
     console.log(
       `[TranslationBridge:${this.targetLanguage}] Stopping bridge`
     );
@@ -425,6 +431,13 @@ export class TranslationBridge {
       setup: {
         model: `models/${this.geminiModel}`,
         outputAudioTranscription: {},
+        ...(this.systemInstruction
+          ? {
+              systemInstruction: {
+                parts: [{ text: this.systemInstruction }],
+              },
+            }
+          : {}),
         generationConfig: {
           responseModalities: ["AUDIO"],
           translationConfig: {
@@ -477,9 +490,6 @@ export class TranslationBridge {
         const update = message.sessionResumptionUpdate;
         if (update.resumable && update.newHandle) {
           this.resumptionHandle = update.newHandle;
-          console.log(
-            `[TranslationBridge:${this.targetLanguage}] Received sessionResumptionUpdate with newHandle: ${this.resumptionHandle}`
-          );
         }
       }
 

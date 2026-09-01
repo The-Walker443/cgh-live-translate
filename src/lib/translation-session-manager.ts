@@ -37,6 +37,7 @@ export interface SessionInfo {
   organizerIdentity: string;
   createdAt: Date;
   allowedLanguages?: string[];
+  systemInstruction?: string;
 }
 
 const globalForSessionManager = global as unknown as {
@@ -63,16 +64,20 @@ class TranslationSessionManager {
   createSession(
     sessionId: string,
     organizerIdentity: string,
-    allowedLanguages?: string[]
+    allowedLanguages?: string[],
+    systemInstruction?: string
   ): SessionInfo {
     const info: SessionInfo = {
       sessionId,
       organizerIdentity,
       createdAt: new Date(),
       allowedLanguages,
+      systemInstruction,
     };
     this.sessions.set(sessionId, info);
-    console.log(`[SessionManager] Created session ${sessionId} for organizer ${organizerIdentity} with allowed languages: ${allowedLanguages?.join(", ") || "all"}`);
+    console.log(
+      `[SessionManager] Created session ${sessionId} for organizer ${organizerIdentity} with allowed languages: ${allowedLanguages?.join(", ") || "all"}${systemInstruction ? `, systemInstruction: "${systemInstruction.slice(0, 50)}..."` : ""}`
+    );
     return info;
   }
 
@@ -112,11 +117,14 @@ class TranslationSessionManager {
       `[SessionManager] Creating new bridge for ${targetLanguage} in session ${sessionId}`
     );
 
+    const session = this.getSession(sessionId);
+
     const config = {
       geminiApiKey: process.env.GEMINI_API_KEY!,
       livekitUrl: process.env.LIVEKIT_URL || "ws://localhost:7880",
       livekitApiKey: process.env.LIVEKIT_API_KEY!,
       livekitApiSecret: process.env.LIVEKIT_API_SECRET!,
+      systemInstruction: session?.systemInstruction,
     };
 
     const bridge = new TranslationBridge(
@@ -185,7 +193,7 @@ class TranslationSessionManager {
     if (!languageMap) return;
 
     const bridge = languageMap.get(targetLanguage);
-    if (!bridge) return;
+    if (!bridge || bridge.status === "closed") return;
 
     bridge.subscriberCount = Math.max(0, bridge.subscriberCount - 1);
     console.log(
@@ -193,16 +201,16 @@ class TranslationSessionManager {
     );
 
     if (bridge.subscriberCount === 0) {
-      console.log(
-        `[SessionManager] No more subscribers for ${targetLanguage}, tearing down bridge`
-      );
-      await bridge.stop();
       languageMap.delete(targetLanguage);
-
-      // Clean up the session map if no bridges remain
       if (languageMap.size === 0) {
         this.translations.delete(sessionId);
       }
+
+      console.log(
+        `[SessionManager] No more subscribers for ${targetLanguage}, tearing down bridge`
+      );
+      bridge.onStop = undefined;
+      await bridge.stop();
     }
   }
 
@@ -215,6 +223,7 @@ class TranslationSessionManager {
 
     const bridge = languageMap.get(targetLanguage);
     if (bridge) {
+      bridge.onStop = undefined;
       await bridge.stop();
       languageMap.delete(targetLanguage);
       console.log(
@@ -227,6 +236,7 @@ class TranslationSessionManager {
     const languageMap = this.translations.get(sessionId);
     if (languageMap) {
       for (const [, bridge] of languageMap) {
+        bridge.onStop = undefined;
         await bridge.stop();
       }
       languageMap.clear();

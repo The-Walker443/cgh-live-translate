@@ -33,6 +33,7 @@ export default function Home() {
     "en", "zh-Hans", "hi", "es", "fr", "ar", "bn", "pt-BR", "ru", "ur"
   ]);
   const [langSearch, setLangSearch] = useState("");
+  const [systemInstruction, setSystemInstruction] = useState("");
 
   const filteredLanguages = SUPPORTED_LANGUAGES.filter(lang => 
     lang.name.toLowerCase().includes(langSearch.toLowerCase()) ||
@@ -63,7 +64,8 @@ export default function Home() {
           organizerName: "host", 
           password, 
           eventId,
-          allowedLanguages: restrictLanguages ? selectedLanguages : undefined
+          allowedLanguages: restrictLanguages ? selectedLanguages : undefined,
+          systemInstruction: systemInstruction.trim() || undefined,
         }),
       });
       const data = await res.json();
@@ -127,6 +129,15 @@ export default function Home() {
             value={eventId}
             onChange={(e) => setEventId(e.target.value)}
             style={{ textAlign: "center" }}
+            disabled={loading}
+          />
+          <textarea
+            className="input-field"
+            placeholder="Custom system instructions (optional, e.g. terminology, tone, context)"
+            value={systemInstruction}
+            onChange={(e) => setSystemInstruction(e.target.value)}
+            rows={3}
+            style={{ resize: "vertical", minHeight: "72px", fontSize: "13px" }}
             disabled={loading}
           />
 

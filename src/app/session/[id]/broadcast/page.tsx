@@ -143,6 +143,25 @@ function BroadcastControls({
     }
   }, [sessionId]);
 
+  const [systemInstruction, setSystemInstruction] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchSession() {
+      try {
+        const res = await fetch(`/api/sessions/${sessionId}`);
+        if (res.ok) {
+          const data = await res.json();
+          if (data.systemInstruction) {
+            setSystemInstruction(data.systemInstruction);
+          }
+        }
+      } catch (err) {
+        console.error("Failed to fetch session details:", err);
+      }
+    }
+    fetchSession();
+  }, [sessionId]);
+
   useEffect(() => {
     fetchTranslations();
     const interval = setInterval(fetchTranslations, 3000);
@@ -606,6 +625,33 @@ function BroadcastControls({
               </div>
             );
           })
+        )}
+
+        {systemInstruction && (
+          <div
+            style={{
+              marginTop: 16,
+              padding: "12px 16px",
+              background: "var(--bg-elevated)",
+              border: "1px solid var(--border)",
+              textAlign: "left",
+            }}
+          >
+            <span className="label" style={{ display: "block", marginBottom: 6 }}>
+              System Instruction
+            </span>
+            <p
+              className="body-sm"
+              style={{
+                color: "var(--fg-secondary)",
+                wordBreak: "break-word",
+                whiteSpace: "pre-wrap",
+                margin: 0,
+              }}
+            >
+              {systemInstruction}
+            </p>
+          </div>
         )}
       </div>
 
