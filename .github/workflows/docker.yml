@@ -7,12 +7,19 @@
 
 name: Docker-Image bauen und veroeffentlichen
 
+# Veroeffentlicht wird ausschliesslich von main.
+#
+# Zuvor loesten main und gemeinde beide einen Build aus. Da beide auf denselben
+# Commit zeigen, lief derselbe Quellstand zweimal durch und erzeugte zwei
+# verschiedene Digests - der Tag sha-<commit> wurde dann vom spaeter fertigen
+# Lauf ueberschrieben und war damit mehrdeutig. Genau dieser Tag soll aber ein
+# verlaessliches Zurueckrollen erlauben.
 on:
   push:
-    branches: [main, gemeinde]
+    branches: [main]
     tags: ["v*"]
   pull_request:
-    branches: [main, gemeinde]
+    branches: [main]
   workflow_dispatch:
 
 env:
