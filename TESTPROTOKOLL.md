@@ -1,0 +1,226 @@
+# Testprotokoll
+
+Go/No-go-Entscheidung für den sonntäglichen Einsatz der Live-Übersetzung.
+
+Alle Tests laufen im Produktionsmodus (`npm run build`, dann Start über
+`scripts/testlauf.mjs`) — **nicht** mit `npm run dev`. Hot Reload startet den
+Node-Prozess neu, und der `TranslationSessionManager` ist ein In-Memory-Singleton:
+Jeder Reload killt alle laufenden Bridges und alle Sessions.
+
+---
+
+## Testumgebung
+
+| Punkt | Wert |
+| :--- | :--- |
+| Upstream-Basis | `26d9a62` |
+| Branch | `gemeinde` |
+| Node | 22.23.2 |
+| Next.js | 16.2.6 |
+| Modell | `gemini-3.5-live-translate-preview` |
+| LiveKit | Cloud, Build-Stufe (Entwicklungsstufe, nicht Zielarchitektur) |
+| Code-Stand | **unverändert gegenüber Upstream.** `src/config/gemeinde.ts` existiert, ist aber bewusst noch nirgends eingebunden. |
+
+---
+
+## Smoke-Test (Briefing §1.5)
+
+**Datum:** 2026-09-19 — **Ergebnis: bestanden, mit einer Einschränkung**
+
+Serverseitig automatisiert geprüft:
+
+| Prüfung | Ergebnis |
+| :--- | :--- |
+| Produktionsbuild des unveränderten Upstream | bestanden, TypeScript fehlerfrei, 11 Routen |
+| Startseite erreichbar | bestanden, HTTP 200 |
+| Passwortschutz der Sender-Seite | bestanden, falsches Passwort → HTTP 401 |
+| Session mit fester `eventId` anlegen | bestanden, ergibt `sessionId: smoketest` (bestätigt den T-06-Mechanismus) |
+| LiveKit-Zugangsdaten | bestanden, Raum beigetreten als `translator-en`, Audio-Track veröffentlicht |
+| Gemini-Zugangsdaten und Modell | bestanden, WebSocket verbunden, `setupComplete` empfangen |
+| `echoTargetLanguage: true` aktiv | bestanden, im gesendeten Setup bestätigt |
+| `sessionResumption` im Setup | bestanden, vorhanden |
+| Sauberer Abbau | bestanden, WebSocket Code 1000, Raum verlassen, Session entfernt, danach 0 Bridges |
+
+**Einschränkung — noch nicht geprüft:** Der eigentliche Audioweg
+(Mikrofon/Tab-Audio → Bridge → Hörer hört Ton) lässt sich nur im Browser
+verifizieren und ist daher **nicht** Teil dieses automatisierten Durchlaufs.
+Das passiert im ersten T-10-Lauf und wird dort mit abgehakt.
+
+**Nebenbefund:** `next.config.ts` setzt `output: "standalone"`. Next warnt beim
+Start, `next start` sei dafür nicht vorgesehen, und empfiehlt
+`node .next/standalone/server.js`. In der Praxis funktioniert `next start`
+trotzdem vollständig. Für den Regelbetrieb ist zu prüfen, ob der
+Standalone-Server das robustere Startkommando fürs RUNBOOK ist.
+
+**Bestätigt:** `contextWindowCompression` fehlt im gesendeten Setup (im Log
+nachlesbar) — T-03 ist also real erforderlich, nicht nur vermutet.
+
+---
+
+## T-10 — Inhaltliche Qualität (Go/No-go)
+
+> **Das ist der eigentliche Go/No-go-Test.** Ist die Qualität nicht gut genug,
+> ist alles andere wertlos.
+
+Wird **vor** Phase 2 am unveränderten Upstream durchgeführt. Das liefert eine
+saubere Baseline: Spätere Änderungen lassen sich dagegen vergleichen.
+
+### Testmaterial
+
+Echte Predigt der Gemeinde, 46 min 45 s, MP3 128 kbps Mono 44,1 kHz:
+
+`https://cg-hersbruck.de/podcasts/034bb0f3c346ec0aec79a552b6db19a5baae8efb2396c9db6913f6de4833af08.mp3`
+
+### Einspielweg: Tab-Audio — und warum
+
+Eingespielt wird über die **Tab-Audio-Funktion der Broadcast-Seite**, nicht über
+das X32. Begründung:
+
+- **Reproduzierbar.** Alle fünf Bewerter hören exakt dasselbe Eingangssignal.
+  Über Mikrofon und Pult wäre jeder Lauf leicht anders, und die Bewertungen
+  wären nicht mehr vergleichbar — bei einem Test, dessen Ergebnis über das
+  Projekt entscheidet, ist das der wichtigste Punkt.
+- **Isoliert die Fragestellung.** T-10 misst die Übersetzungsqualität, nicht die
+  Audiokette. Tab-Audio nimmt X32, USB-Treiber und Raumakustik aus der Gleichung.
+- **Keine Browser-Signalverarbeitung im Weg.** Tab-Audio läuft nicht über
+  `getUserMedia`, also greifen Chromes Echo Cancellation, Noise Suppression und
+  Auto Gain Control hier gar nicht erst. Genau die Effekte, die T-01 später
+  abschaltet, können das Ergebnis also nicht verfälschen.
+- **Ohne Hardware durchführbar.** Kein Zugang zum Pult nötig, die Läufe können
+  unter der Woche stattfinden.
+
+**Was dieser Weg ausdrücklich nicht abdeckt:** Er prüft T-01 nicht, und er sagt
+nichts über das reale Pultsignal. Ein Podcast-MP3 ist bereits geschnitten und
+nachbearbeitet; das Live-Signal vom X32 hat mehr Raumanteil und andere Dynamik.
+**Das Ergebnis von T-10 ist daher eine Obergrenze.** Fällt T-10 gut aus, ist ein
+späterer Gegentest mit echtem Pultsignal nötig, bevor der Dienst in den
+Regelbetrieb geht.
+
+### Abschnitt
+
+**Einheitlich für alle fünf Läufe: Minute 12:00 bis 27:00.**
+
+Die Lage ist so gewählt, dass Begrüßung, Moderation und Musik am Anfang sicher
+übersprungen sind und der Abschnitt mitten in der Auslegung liegt, wo
+Bibelstellen und theologische Begriffe am dichtesten vorkommen.
+
+> **Einmalige Vorprüfung durch das Technik-Team vor dem ersten Lauf:**
+> Die Datei bei 12:00 anspielen und 60 Sekunden hineinhören. Wird dort
+> durchgehend gepredigt? Falls nicht (z. B. noch Moderation oder ein Lied), in
+> 3-Minuten-Schritten nach hinten verschieben, bis es passt.
+> **Der so gefundene Startpunkt gilt dann für alle fünf Läufe.**
+>
+> Tatsächlich verwendeter Abschnitt: **von ............ bis ............**
+
+### Ablauf eines Laufs (ca. 20 Minuten)
+
+Jeder Lauf braucht eine sendende Person (Technik-Team) und eine bewertende
+Person. „Unabhängig" heißt hier: **unabhängiges Urteil** — die Bewerter sollen
+sich vorher nicht austauschen und die Bögen nicht gemeinsam ausfüllen. Die fünf
+Läufe finden nacheinander statt, nicht gleichzeitig.
+
+**Technik-Team, vor dem Lauf:**
+
+1. `npm run build` (nur nötig, wenn sich der Code geändert hat)
+2. `node scripts/testlauf.mjs` starten — schreibt ein Log mit Zeitstempeln nach
+   `logs/` und wertet am Ende automatisch aus
+3. Session anlegen, Broadcast-Seite öffnen, Passwort eingeben
+4. MP3 in einem eigenen Browser-Tab öffnen, auf den festgelegten Startpunkt
+   spulen, **pausiert** stehen lassen
+5. Auf der Broadcast-Seite Tab-Audio aktivieren und diesen Tab freigeben —
+   dabei **„Audio des Tabs teilen" anhaken**, sonst kommt kein Ton an
+6. Watch-Link an die bewertende Person geben
+
+**Bewertende Person:**
+
+7. Link öffnen, eigene Sprache wählen, Kopfhörer aufsetzen
+8. Kurz bestätigen, dass Ton ankommt
+9. Erst dann startet das Technik-Team die Wiedergabe
+10. **15 Minuten am Stück zuhören**, nebenbei Stichpunkte für Abschnitt 6 des
+    Bogens notieren
+11. Bogen direkt im Anschluss ausfüllen, nicht später aus dem Gedächtnis
+
+**Technik-Team, nach dem Lauf:**
+
+12. Wiedergabe stoppen, Session beenden (sonst laufen Kosten weiter)
+13. `scripts/testlauf.mjs` mit Strg+C beenden → Auswertung erscheint
+14. Werte in die Tabellen unten eintragen
+
+### Kosten und Kontingent
+
+Pro Lauf sind drei Teilnehmer 15 Minuten verbunden (Sender, Übersetzer-Bot,
+Hörer) = 45 Teilnehmerminuten. Fünf Läufe = **225 Teilnehmerminuten** von 5.000
+im Monatskontingent der Build-Stufe. Gemini-Kosten rund **2,80 USD** insgesamt.
+
+### Ergebnisse
+
+Skala 1–5, 5 ist am besten. Empfehlung: Ja / Mit Einschränkung / Nein.
+
+| Sprache | Bewerter | Datum | Verständlichkeit | Bibelstellen & Namen | Theol. Begriffe | Aussetzer | Empfehlung |
+| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :--- |
+| English (en) | | | | | | | |
+| Română (ro) | | | | | | | |
+| Русский (ru) | | | | | | | |
+| Magyar (hu) | | | | | | | |
+| 简体中文 (zh-Hans) | | | | | | | |
+
+**Bewertungskriterium:** Eine Sprache gilt als bestanden, wenn Verständlichkeit
+mindestens 4 beträgt **und** die Empfehlung „Ja" lautet.
+
+> **Wenn eine Sprache durchfällt:** melden und auf Entscheidung warten. Sie wird
+> **nicht** stillschweigend aus der Liste genommen.
+
+**Zusammenfassung / Entscheidung:**
+
+...................................................................
+
+---
+
+## Nebenbefund: Reconnect-Verhalten (Vorstufe zu T-09)
+
+Wird während der T-10-Läufe nebenbei miterhoben — es läuft ohnehin Audio über
+die Bridge. Das ist **noch nicht T-09**, liefert aber einen frühen Hinweis
+darauf, ob `contextWindowCompression` (T-03) wirklich nötig ist.
+
+`scripts/testlauf.mjs` erkennt die Ereignisse automatisch und fasst sie beim
+Beenden zusammen.
+
+Hintergrund: Eine einzelne Gemini-WebSocket-Verbindung lebt rund 10 Minuten,
+eine Audio-Session ohne Kompression maximal 15 Minuten. Bei 15 Minuten Laufzeit
+ist **mindestens ein Reconnect zu erwarten**. Bleibt er aus, ist das ebenfalls
+ein verwertbares Ergebnis und gehört notiert.
+
+| Sprache | Laufzeit | goAway? | Erster Reconnect bei | Handle vorhanden? | Größte Audio-Lücke | Hörbar? |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| English (en) | | | | | | |
+| Română (ro) | | | | | | |
+| Русский (ru) | | | | | | |
+| Magyar (hu) | | | | | | |
+| 简体中文 (zh-Hans) | | | | | | |
+
+„Hörbar?" beantwortet die bewertende Person aus Abschnitt 4 des Bogens, nicht
+das Log. Interessant ist gerade der Fall, dass das Log eine Lücke zeigt, dem
+Hörer aber nichts aufgefallen ist.
+
+**Vorläufige Einschätzung zu T-03:**
+
+...................................................................
+
+---
+
+## Übrige Tests
+
+Alle noch offen. Werden erst nach Abschluss von T-10 und Phase 2 durchgeführt.
+
+| # | Test | Kriterium | Status |
+| :--- | :--- | :--- | :--- |
+| T-09 | Dauerlauf 60 Minuten mit echtem Predigtmaterial | Keine Abbrüche, keine Audio-Lücke über 3 s | offen |
+| T-11 | Zitat in der Zielsprache (englischer Satz bei Zielsprache Englisch) | Modell schweigt nicht, gibt das Zitat wieder | offen |
+| T-12 | Lobpreis und Musik bei aktiver Übersetzung | Prüfen, ob Artefakte entstehen — daraus ergibt sich, ob ein Stopp-Knopf nötig ist | offen |
+| T-13 | iPhone mit gesperrtem Bildschirm, 20 Minuten | Ton läuft weiter — oder das Gegenteil ist dokumentiert | offen |
+| T-14 | Zwei Sprachen gleichzeitig, je zwei Hörer | Beide Bridges stabil, keine gegenseitige Störung | offen |
+| T-15 | Hörer verlässt und kommt zurück | Bridge korrekt abgebaut und wieder aufgebaut, kein Session-Leak | offen |
+| T-16 | `systemInstruction` mit Glossar | Wirkt es oder wird es ignoriert? Keine Zusage vor der Messung. | offen |
+| T-17 | Netzwerkabriss am Sender-PC (10 s) | App erholt sich, oder klare Fehlermeldung. Prüfen, ob fälschlich alle Bridges abgebaut werden. | offen |
+| T-18 | Browser am Handy hart beenden | Bridge wird binnen 10 Minuten abgebaut, im Log begründet | offen |
+| T-19 | Hörer bleibt 30 Minuten still verbunden | Übersetzung bleibt aktiv, der Abgleich räumt nichts ab | offen |

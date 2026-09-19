@@ -14,15 +14,20 @@ Was suboptimal erscheint, aber funktioniert, wurde notiert statt umgebaut.
 
 ## Stand
 
-Phase 1 (unveränderter Betrieb) ist **noch nicht abgeschlossen** — es fehlen
-die Zugangsdaten. Phase 2 (Tasks T-01 bis T-08) ist daher noch nicht begonnen.
+Phase 1 ist abgeschlossen. **Phase 2 (T-01 bis T-08) ist bewusst noch nicht
+begonnen:** Zuerst läuft T-10 am unveränderten Upstream, weil das der einzige
+Test ist, der das Projekt kippen kann, und weil er so eine saubere
+Vergleichsbasis für alle späteren Änderungen liefert.
 
 | Was | Stand |
 | :--- | :--- |
 | Repo geklont, Branch `gemeinde` | ✅ |
 | Node 22.23.2, Abhängigkeiten installiert | ✅ |
 | Baseline-Build des unveränderten Upstream | ✅ grün |
-| Smoke-Test | ⛔ blockiert (keine Zugangsdaten) |
+| Smoke-Test, serverseitig | ✅ bestanden (siehe `TESTPROTOKOLL.md`) |
+| Smoke-Test, Audioweg im Browser | offen — wird im ersten T-10-Lauf abgehakt |
+| T-10 (Go/No-go) | vorbereitet, Durchführung steht aus |
+| Phase 2 | nicht begonnen |
 
 ---
 
@@ -33,6 +38,10 @@ die Zugangsdaten. Phase 2 (Tasks T-01 bis T-08) ist daher noch nicht begonnen.
 | `src/config/gemeinde.ts` | **neu** | Gemeinde-spezifische Sprachliste, native Anzeigenamen und feste Session-ID. Bewusst eine eigene Datei, damit `src/lib/languages.ts` (Upstream) unangetastet bleibt. Noch von nichts importiert — wird in T-05/T-06 verdrahtet. |
 | `.env.local` | **neu, nicht im Git** | Lokale Konfiguration. Durch `.gitignore` (`.env*`) ausgeschlossen. |
 | `ANPASSUNGEN.md` | **neu** | Dieses Dokument. |
+| `TESTPROTOKOLL.md` | **neu** | Testprotokoll und Ergebnisse. Enthält den Ablauf für T-10. |
+| `T10-BEWERTUNGSBOGEN.md` | **neu** | Einseitiger Bogen zum Ausdrucken für die Muttersprachler in T-10. |
+| `scripts/testlauf.mjs` | **neu** | Startet den Server für Testläufe. Next schreibt keine Zeitstempel — ohne die lässt sich „Laufzeit bis zum ersten Reconnect" nicht bestimmen. Erkennt goAway, Reconnects und Audio-Lücken und fasst sie beim Beenden zusammen. **Redigiert außerdem Secrets**, weil die Gemini-WebSocket-URL den API-Key als Query-Parameter enthält und Fehlerobjekte die URL mitführen können — ein Logfile soll gefahrlos weitergegeben werden können. |
+| `.gitignore` | **1 Zeile ergänzt** | `/logs` — Testlauf-Logs gehören nicht ins Repository. |
 
 ### Bewusst unverändert gelassen
 
