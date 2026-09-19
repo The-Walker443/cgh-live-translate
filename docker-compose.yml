@@ -1,0 +1,77 @@
+# Bereitstellung der Live-Uebersetzung.
+#
+# Auf dem Server werden nur zwei Dateien gebraucht: diese hier und eine .env
+# mit den Zugangsdaten (Vorlage: .env.example). Der Quellcode wird nicht
+# benoetigt - das Image kommt fertig gebaut aus der GitHub Container Registry.
+#
+#   docker compose pull
+#   docker compose up -d
+#
+# Aktualisieren spaeter mit demselben Befehlspaar.
+
+services:
+  app:
+    # Wird in der .env gesetzt, z. B.
+    #   IMAGE=ghcr.io/<benutzer>/<repo>:latest
+    image: ${IMAGE:?In der .env muss IMAGE gesetzt sein}
+    container_name: live-uebersetzung
+    restart: unless-stopped
+
+    # Alle Zugangsdaten kommen zur Laufzeit herein. Im Image ist nichts davon
+    # eingebacken - dieselbe Image-Datei laeuft gegen LiveKit Cloud wie gegen
+    # ein selbst gehostetes LiveKit auf der NAS.
+    env_file:
+      - .env
+
+    ports:
+      - "${APP_PORT:-8080}:8080"
+
+    # node:22-slim enthaelt weder curl noch wget, daher Node selbst.
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "node",
+          "-e",
+          "fetch('http://127.0.0.1:8080/api/auth/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
+        ]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
+
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+  # ---------------------------------------------------------------------
+  # Selbst gehostetes LiveKit - Ausbaustufe, standardmaessig AUS.
+  #
+  # Starten mit:  docker compose --profile livekit up -d
+  #
+  # ACHTUNG, das ist nicht schluesselfertig. Zu klaeren ist vorher:
+  #  - TLS. Besucher-Handys verbinden sich per wss://, dafuer braucht dieser
+  #    Dienst ein gueltiges Zertifikat (ueblicherweise ueber einen Reverse
+  #    Proxy davor). Das ist der eigentliche Aufwand des NAS-Umzugs.
+  #  - UDP-Ports. WebRTC braucht einen freigegebenen UDP-Bereich; er muss im
+  #    Router auf die NAS zeigen.
+  #  - Schluessel. Die Werte aus der .env gelten dann auch hier; die
+  #    Entwicklungsschluessel von LiveKit Cloud sind dafuer ungeeignet.
+  #
+  # Merksatz: LIVEKIT_URL ist die Adresse aus Sicht des BESUCHER-HANDYS,
+  # niemals localhost.
+  # ---------------------------------------------------------------------
+  livekit:
+    profiles: ["livekit"]
+    image: livekit/livekit-server:latest
+    container_name: livekit
+    restart: unless-stopped
+    command: --config /etc/livekit.yaml
+    volumes:
+      - ./livekit.yaml:/etc/livekit.yaml:ro
+    ports:
+      - "7880:7880"          # Signalisierung (HTTP/WebSocket)
+      - "7881:7881"          # WebRTC ueber TCP
+      - "50000-50100:50000-50100/udp"  # WebRTC Medien

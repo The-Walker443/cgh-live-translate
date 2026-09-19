@@ -1,4 +1,10 @@
 node_modules
 .next
 .git
-.env.local
+
+# Secrets duerfen niemals ins Image. Bewusst ein Muster statt nur .env.local,
+# damit auch .env, .env.production usw. ausgeschlossen bleiben.
+.env*
+
+# Testartefakte
+logs

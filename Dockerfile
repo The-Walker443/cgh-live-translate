@@ -35,6 +35,11 @@ WORKDIR /app
 ENV NODE_ENV=production
 ENV PORT=8080
 
+# Docker setzt HOSTNAME auf die Container-ID. Der Standalone-Server von Next
+# liest genau diese Variable (`process.env.HOSTNAME || '0.0.0.0'`) und wuerde
+# dann nur auf diesen Namen binden statt auf alle Interfaces. Explizit setzen.
+ENV HOSTNAME=0.0.0.0
+
 # Copy standalone server + static assets
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static

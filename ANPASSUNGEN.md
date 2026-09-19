@@ -41,7 +41,14 @@ Vergleichsbasis für alle späteren Änderungen liefert.
 | `TESTPROTOKOLL.md` | **neu** | Testprotokoll und Ergebnisse. Enthält den Ablauf für T-10. |
 | `T10-BEWERTUNGSBOGEN.md` | **neu** | Einseitiger Bogen zum Ausdrucken für die Muttersprachler in T-10. |
 | `scripts/testlauf.mjs` | **neu** | Startet den Server für Testläufe. Next schreibt keine Zeitstempel — ohne die lässt sich „Laufzeit bis zum ersten Reconnect" nicht bestimmen. Erkennt goAway, Reconnects und Audio-Lücken und fasst sie beim Beenden zusammen. **Redigiert außerdem Secrets**, weil die Gemini-WebSocket-URL den API-Key als Query-Parameter enthält und Fehlerobjekte die URL mitführen können — ein Logfile soll gefahrlos weitergegeben werden können. |
-| `.gitignore` | **1 Zeile ergänzt** | `/logs` — Testlauf-Logs gehören nicht ins Repository. |
+| `scripts/demo-sender.mjs` | **neu** | Speist eine Audiodatei direkt als Sender in den LiveKit-Raum ein, statt sie über die Broadcast-Seite per Tab-Audio zu teilen. Wer bewertet, kann nicht gleichzeitig den Browser bedienen und konzentriert zuhören. Wartet auf die Bridge, bevor die Wiedergabe startet, und liefert allen Läufen bitidentisches Material ab derselben Sekunde. |
+| `DEPLOYMENT.md` | **neu** | Anleitung für die Bereitstellung per Docker Compose. |
+| `.github/workflows/docker.yml` | **neu** | Prüft Typen und Build, baut danach ein Multi-Arch-Image (amd64 + arm64) und veröffentlicht es nach GHCR. Ziel: Auf dem Server genügen `docker-compose.yml` und `.env`. |
+| `docker-compose.yml` | **neu** | Bereitstellung aus dem fertigen Image. Enthält zusätzlich einen abgeschalteten Dienst für selbst gehostetes LiveKit als Ausbaustufe. |
+| `.env.example` | **neu** | Vorlage für die `.env` auf dem Server. Enthält keine Werte. |
+| `Dockerfile` | **1 Zeile ergänzt** | `ENV HOSTNAME=0.0.0.0`. Docker setzt `HOSTNAME` auf die Container-ID, und der Standalone-Server von Next liest genau diese Variable (`process.env.HOSTNAME \|\| '0.0.0.0'`). Ohne die Zeile bindet er auf den Container-Namen statt auf alle Interfaces. |
+| `.dockerignore` | **erweitert** | `.env.local` zu `.env*` verallgemeinert, damit auch `.env` und `.env.production` nie ins Image geraten. `logs` ergänzt. |
+| `.gitignore` | **ergänzt** | `/logs` — Testlauf-Logs gehören nicht ins Repository. Dazu `!.env.example`: Das vorhandene Muster `.env*` hätte sonst auch die Vorlage ausgeschlossen, die eingecheckt werden muss. |
 
 ### Bewusst unverändert gelassen
 
