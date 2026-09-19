@@ -71,10 +71,30 @@ Echte Predigt der Gemeinde, 46 min 45 s, MP3 128 kbps Mono 44,1 kHz:
 
 `https://cg-hersbruck.de/podcasts/034bb0f3c346ec0aec79a552b6db19a5baae8efb2396c9db6913f6de4833af08.mp3`
 
-### Einspielweg: Tab-Audio — und warum
+### Einspielweg: direkte Einspeisung über `scripts/demo-sender.mjs`
 
-Eingespielt wird über die **Tab-Audio-Funktion der Broadcast-Seite**, nicht über
-das X32. Begründung:
+**Umgestellt am 2026-09-19.** Ursprünglich war Tab-Audio über die
+Broadcast-Seite vorgesehen. In der Praxis zeigte sich sofort ein Problem: Wer
+bewertet, müsste gleichzeitig den Browser bedienen — Tab spulen, Freigabe
+starten — und kann dabei nicht konzentriert zuhören.
+
+Eingespielt wird daher über [`scripts/demo-sender.mjs`](scripts/demo-sender.mjs).
+Das Skript tritt dem LiveKit-Raum selbst als Sender bei, dekodiert die Datei mit
+ffmpeg nach 48 kHz Mono und veröffentlicht sie als Audio-Track. Es **wartet, bis
+die Übersetzer-Bridge im Raum ist**, und startet die Wiedergabe erst dann — die
+bewertende Person muss nur den Link öffnen, die Sprache wählen und zuhören.
+
+Vorteile gegenüber Tab-Audio, zusätzlich zu den unten genannten:
+
+- **Exakt derselbe Startpunkt für alle fünf Läufe.** Manuelles Spulen im Tab
+  trifft die Sekunde nie zuverlässig; das Skript bekommt sie als Parameter.
+- **Nachweislich driftfrei.** Im ersten Lauf: 90.000 Frames = 15:00 Audio bei
+  15:00 Laufzeit. Die Taktung übernimmt der Rückstau von `captureFrame`.
+- **Material verifiziert.** Der SHA256 der Datei ist identisch mit ihrem
+  Dateinamen im Podcast-Feed
+  (`034bb0f3c346ec0aec79a552b6db19a5baae8efb2396c9db6913f6de4833af08`).
+
+Die ursprüngliche Begründung gegen das X32 gilt unverändert:
 
 - **Reproduzierbar.** Alle fünf Bewerter hören exakt dasselbe Eingangssignal.
   Über Mikrofon und Pult wäre jeder Lauf leicht anders, und die Bewertungen
@@ -95,6 +115,13 @@ nachbearbeitet; das Live-Signal vom X32 hat mehr Raumanteil und andere Dynamik.
 **Das Ergebnis von T-10 ist daher eine Obergrenze.** Fällt T-10 gut aus, ist ein
 späterer Gegentest mit echtem Pultsignal nötig, bevor der Dienst in den
 Regelbetrieb geht.
+
+> **Zusätzlich offen durch die Umstellung:** Die direkte Einspeisung umgeht die
+> Broadcast-Seite vollständig. Der **Browser-Audioweg des Senders** (Mikrofon
+> bzw. Tab-Audio) ist damit weiterhin ungeprüft — der offene Rest des
+> Smoke-Tests schließt sich hier also *nicht*. Dafür ist ein eigener kurzer
+> Durchgang über die Broadcast-Seite nötig. Für die Übersetzungsqualität ist es
+> unerheblich, woher der Track kommt.
 
 ### Abschnitt
 
@@ -192,7 +219,7 @@ ein verwertbares Ergebnis und gehört notiert.
 
 | Sprache | Laufzeit | goAway? | Erster Reconnect bei | Handle vorhanden? | Größte Audio-Lücke | Hörbar? |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
-| English (en) | | | | | | |
+| English (en) | 15:02 | ja, „Time left: 50s" | **9:00** nach Bridge-Start | **ja** | **4,6 s** | offen |
 | Română (ro) | | | | | | |
 | Русский (ru) | | | | | | |
 | Magyar (hu) | | | | | | |
@@ -202,9 +229,55 @@ ein verwertbares Ergebnis und gehört notiert.
 das Log. Interessant ist gerade der Fall, dass das Log eine Lücke zeigt, dem
 Hörer aber nichts aufgefallen ist.
 
-**Vorläufige Einschätzung zu T-03:**
+### Ablauf des ersten Laufs (English, 2026-09-19)
 
-...................................................................
+```
++06:53  Bridge aktiv, Gemini-Setup vollständig
++15:53  goAway von Gemini, "Time left: 50s"
++15:53  Reconnect mit Resumption-Handle c0ae2902-…
++15:53  Reconnect-WebSocket offen
++15:54  Reconnect-Setup vollständig  (rund 1 Sekunde)
++15:58  Audio wieder da nach 4570 ms Lücke
++21:55  Sender verlässt den Raum → Bridge stoppt sich selbst, Code 1000
+```
+
+**Drei Befunde:**
+
+1. **Session Resumption funktioniert.** Der Handle war vorhanden, das
+   Reconnect-Setup war nach rund einer Sekunde abgeschlossen, die Übersetzung
+   lief danach weiter. Kein Abbruch.
+2. **Die Audio-Lücke betrug 4,6 s und liegt damit über dem
+   3-Sekunden-Kriterium aus T-03.** Auffällig ist die Aufteilung: Das
+   Reconnect-Setup dauerte nur 1 s, bis zum ersten Audio vergingen aber 4,6 s.
+   Der Engpass liegt also nicht im Verbindungsaufbau, sondern danach —
+   vermutlich braucht das Modell nach der Wiederaufnahme Anlauf, bis wieder
+   Audio kommt.
+3. **Der Abbau beim Weggang des Senders funktioniert** (`Organizer
+   disconnected, stopping bridge`). Das bestätigt den in T-08 zu
+   verifizierenden Mechanismus — nicht neu bauen.
+
+**Vorläufige Einschätzung zu T-03 — wichtige Abgrenzung:**
+
+Dieser Lauf beweist **nicht**, dass `contextWindowCompression` das Problem löst.
+Hier sind zwei verschiedene Grenzen im Spiel, die nicht verwechselt werden
+dürfen:
+
+- Die **Verbindungslebensdauer** (rund 10 Minuten) — sie hat das `goAway`
+  ausgelöst und wird durch Session Resumption aufgefangen.
+  `contextWindowCompression` ändert daran nichts.
+- Die **Session-Lebensdauer** (ohne Kompression 15 Minuten Audio) — genau dagegen
+  wirkt `contextWindowCompression`. Diese Grenze wurde hier **nicht erreicht**,
+  weil der Lauf nur 15 Minuten dauerte.
+
+Daraus folgt: T-03 bleibt für den 45-Minuten-Betrieb erforderlich, ist durch
+diesen Lauf aber weder bestätigt noch widerlegt. Das klärt erst der
+60-Minuten-Dauerlauf T-09.
+
+**Die 4,6-Sekunden-Lücke ist ein eigenständiges Problem**, das
+`contextWindowCompression` voraussichtlich *nicht* behebt, weil Reconnects
+weiterhin alle rund 10 Minuten auftreten. Bei einer 45-Minuten-Predigt sind das
+etwa vier Lücken. Ob das im Gottesdienst stört, entscheidet das Hörurteil, nicht
+das Log — deshalb ist die Spalte „Hörbar?" der eigentliche Maßstab.
 
 ---
 
