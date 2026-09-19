@@ -24,7 +24,7 @@ eigene Repository kommt als zusätzliches Remote dazu, damit ein späteres
 git remote rename origin upstream
 
 # Eigenes Repository als neues origin eintragen
-git remote add origin https://github.com/<benutzer>/<repo>.git
+git remote add origin https://github.com/The-Walker443/cgh-live-translate.git
 
 # Branch gemeinde hochladen
 git push -u origin gemeinde
@@ -38,23 +38,21 @@ Architekturen gebaut werden (amd64 und arm64) und der Cache noch leer ist.
 
 ### Sichtbarkeit des Images
 
-Images in der GitHub Container Registry sind **standardmäßig privat**. Das ist
-der häufigste Stolperstein beim ersten `docker compose pull`.
+**Aktueller Stand: öffentlich abrufbar, keine Anmeldung nötig.** Geprüft am
+2026-09-19 gegen die Registry — die Tag-Liste ist anonym abrufbar, und das
+Manifest enthält `linux/amd64` und `linux/arm64`. Auf der Synology genügt also
+`docker compose pull`, unabhängig von der CPU.
 
-Zwei Möglichkeiten:
+Das Image enthält keine Zugangsdaten; die kommen erst zur Laufzeit aus der
+`.env`.
 
-**a) Image öffentlich machen** — am einfachsten, wenn der Inhalt unkritisch ist.
-Im Repository unter *Packages* das Paket auswählen → *Package settings* →
-*Change visibility* → *Public*. Es enthält keine Zugangsdaten; die kommen erst
-zur Laufzeit aus der `.env`.
-
-**b) Image privat lassen** — dann muss sich der Server anmelden. Dazu ein
-Personal Access Token (classic) mit der Berechtigung `read:packages` anlegen
-und auf dem Server einmalig:
-
-```bash
-echo "<token>" | docker login ghcr.io -u <benutzer> --password-stdin
-```
+> Sollte die Sichtbarkeit später auf privat umgestellt werden, muss sich der
+> Server anmelden: Personal Access Token (classic) mit `read:packages` anlegen
+> und einmalig ausführen:
+>
+> ```bash
+> echo "<token>" | docker login ghcr.io -u The-Walker443 --password-stdin
+> ```
 
 ---
 
@@ -67,15 +65,15 @@ mkdir -p /volume1/docker/live-uebersetzung
 cd /volume1/docker/live-uebersetzung
 
 # docker-compose.yml und .env.example aus dem Repository herunterladen
-curl -O https://raw.githubusercontent.com/<benutzer>/<repo>/gemeinde/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/<benutzer>/<repo>/gemeinde/.env.example
+curl -O https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/.env.example
 ```
 
 Danach die `.env` ausfüllen. Mindestens:
 
 | Variable | Bedeutung |
 | :--- | :--- |
-| `IMAGE` | `ghcr.io/<benutzer>/<repo>:latest` |
+| `IMAGE` | `ghcr.io/the-walker443/cgh-live-translate:latest` |
 | `APP_PORT` | Port auf dem Server, Standard 8080 |
 | `LIVEKIT_API_KEY` / `_SECRET` / `_URL` | LiveKit-Zugangsdaten |
 | `GEMINI_API_KEY` | Muss aus einem Paid-Tier-Projekt stammen |
@@ -107,7 +105,7 @@ docker compose pull && docker compose up -d
 
 Die Action schreibt bei jedem Lauf in die Zusammenfassung, welche Tags
 veröffentlicht wurden. Wer nicht immer `latest` will, setzt in der `.env` einen
-festen Tag, etwa `IMAGE=ghcr.io/<benutzer>/<repo>:sha-1a2b3c4`.
+festen Tag, etwa `IMAGE=ghcr.io/the-walker443/cgh-live-translate:sha-1a2b3c4`.
 
 ---
 

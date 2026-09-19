@@ -60,6 +60,26 @@ Vergleichsbasis für alle späteren Änderungen liefert.
 
 ---
 
+## Branches und CI
+
+`main` und `gemeinde` zeigen auf denselben Stand. `main` ist der Standardbranch
+und liefert den `latest`-Tag des Images; `gemeinde` bleibt als Arbeitsbranch
+bestehen. Der ursprüngliche Plan, `main` dauerhaft auf dem reinen
+Upstream-Stand zu halten, wurde damit aufgegeben — die Vergleichsbasis liefert
+stattdessen das Remote `upstream`, das weiterhin auf das Google-Repository
+zeigt (`git diff upstream/main`).
+
+**Lint läuft bewusst nur über `src/config` und `scripts`.** Der Upstream hat 17
+offene Lint-Befunde, überwiegend `any`-Typen in `broadcast/page.tsx`,
+`watch/page.tsx` und `api/sessions/route.ts`. Sie werden **nicht behoben**: Das
+wären Änderungen an Upstream-Dateien, die bei jedem `git pull` vom Upstream
+Konflikte erzeugen. Würde das gesamte Projekt gelintet, produzierte jeder
+CI-Lauf 17 Annotationen, die niemand mehr liest — und ein echter Fehler in
+eigenem Code ginge darin unter. Die **Typprüfung** läuft dagegen unverändert
+über das gesamte Projekt; die ist upstream sauber.
+
+---
+
 ## Entscheidungen, die den Code betreffen
 
 ### LiveKit Cloud ist Entwicklung, nicht Zielarchitektur
