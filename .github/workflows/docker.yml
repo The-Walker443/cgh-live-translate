@@ -9,10 +9,10 @@ name: Docker-Image bauen und veroeffentlichen
 
 on:
   push:
-    branches: [gemeinde, main]
+    branches: [main, gemeinde]
     tags: ["v*"]
   pull_request:
-    branches: [gemeinde]
+    branches: [main, gemeinde]
   workflow_dispatch:
 
 env:
@@ -26,9 +26,9 @@ jobs:
     name: Typen und Lint pruefen
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-node@v4
+      - uses: actions/setup-node@v5
         with:
           node-version: "22"
           cache: npm
@@ -36,12 +36,23 @@ jobs:
       - name: Abhaengigkeiten installieren
         run: npm ci
 
+      # Typpruefung ueber das gesamte Projekt - die ist upstream sauber.
       - name: TypeScript pruefen
         run: npx tsc --noEmit
 
-      - name: Lint
-        run: npm run lint
-        continue-on-error: true
+      # Lint bewusst nur auf selbst geschriebenem Code, und dort streng.
+      #
+      # Der Upstream hat 17 offene Lint-Befunde (vor allem `any`-Typen in
+      # broadcast/page.tsx, watch/page.tsx und api/sessions/route.ts). Die
+      # werden NICHT behoben: Das waeren Aenderungen an Upstream-Dateien, die
+      # bei jedem `git pull` vom Upstream Konflikte erzeugen - und die Regel
+      # fuer dieses Projekt lautet minimal-invasive Diffs.
+      #
+      # Wuerde hier das ganze Projekt gelintet, produzierte jeder Lauf 17
+      # Annotationen, die niemand mehr liest. Dann faellt ein echter Fehler in
+      # unserem Code nicht mehr auf. Deshalb dieser Zuschnitt.
+      - name: Lint (nur eigener Code)
+        run: npx eslint src/config scripts --no-error-on-unmatched-pattern
 
       - name: Produktionsbuild
         run: npm run build
@@ -55,7 +66,7 @@ jobs:
       packages: write
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # QEMU und Buildx, damit auch arm64 gebaut werden kann. Synology-NAS
       # gibt es sowohl mit x86_64 als auch mit ARM-CPU; welche Variante hier
@@ -82,7 +93,10 @@ jobs:
             type=semver,pattern={{version}}
             type=semver,pattern={{major}}.{{minor}}
             type=sha,format=short
-            type=raw,value=latest,enable=${{ github.ref == format('refs/heads/{0}', 'gemeinde') }}
+            # latest haengt am Standardbranch des Repositories (main), nicht an
+            # einem fest verdrahteten Namen. So bleibt es richtig, falls der
+            # Arbeitsbranch spaeter anders heisst.
+            type=raw,value=latest,enable={{is_default_branch}}
 
       - name: Bauen und pushen
         uses: docker/build-push-action@v6
