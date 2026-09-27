@@ -25,6 +25,7 @@ import {
 import "@livekit/components-styles";
 import { Track, RoomEvent } from "livekit-client";
 import SessionQRCode from "@/components/SessionQRCode";
+import CompanionControl from "@/components/CompanionControl";
 import { getLanguageByCode } from "@/lib/languages";
 
 interface TranslationInfo {
@@ -73,6 +74,9 @@ function BroadcastControls({
   const [micVolume, setMicVolume] = useState(100);
   const [tabVolume, setTabVolume] = useState(100);
   const [isWakeLockActive, setIsWakeLockActive] = useState(false);
+  // Ton angehalten per Companion. Die Session bleibt dabei bestehen, es wird
+  // nur kein Audio mehr uebertragen - gedacht fuer Lobpreis und Moderation.
+  const [isPaused, setIsPaused] = useState(false);
 
   // Manage Screen Wake Lock to prevent the phone/device from sleeping during broadcast
   useEffect(() => {
@@ -250,7 +254,11 @@ function BroadcastControls({
     const pub = publishedTrackPubRef.current;
     if (!pub) return;
 
-    const hasActiveInput = isMicEnabled || isTabAudioEnabled;
+    // isPaused kommt aus der Companion-Fernsteuerung. Es muss hier einfliessen
+    // und nicht separat stummschalten: Dieser Effekt laeuft bei jeder
+    // Eingangsaenderung erneut und wuerde eine von aussen gesetzte Stummschaltung
+    // sonst wieder aufheben.
+    const hasActiveInput = (isMicEnabled || isTabAudioEnabled) && !isPaused;
     if (hasActiveInput) {
       pub.unmute()
         .then(() => console.log("[BroadcastControls] Unmuted broadcast-audio track"))
@@ -260,7 +268,7 @@ function BroadcastControls({
         .then(() => console.log("[BroadcastControls] Muted broadcast-audio track"))
         .catch((err: any) => console.error("Failed to mute track:", err));
     }
-  }, [isMicEnabled, isTabAudioEnabled]);
+  }, [isMicEnabled, isTabAudioEnabled, isPaused]);
 
   const toggleMicrophone = async () => {
     const ctx = audioContextRef.current;
@@ -284,7 +292,40 @@ function BroadcastControls({
     } else {
       try {
         await ctx.resume();
-        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        // Browser-Signalverarbeitung abschalten.
+        //
+        // Bei `audio: true` aktiviert Chrome automatisch Echo-Unterdrueckung,
+        // Rauschfilter und automatische Aussteuerung. Die sind fuer
+        // Videotelefonie gedacht und arbeiten gegen ein fertig gemischtes
+        // Pultsignal: Die Automatik regelt in Sprechpausen hoch und beim
+        // Einsetzen der Stimme wieder herunter, der Rauschfilter schneidet
+        // leise Passagen weg. Abschalten geht nur hier - in den
+        // Chrome-Einstellungen gibt es dafuer keine Option.
+        //
+        // Das Eingangsgeraet waehlt Chrome selbst ueber seine
+        // Seiteneinstellungen; dafuer ist hier bewusst nichts vorgegeben.
+        const stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: false,
+            noiseSuppression: false,
+            autoGainControl: false,
+            channelCount: 1,
+          },
+        });
+
+        // Chrome uebernimmt diese Vorgaben bei manchen Treibern stillschweigend
+        // nicht. Deshalb gegenpruefen statt annehmen - im Zweifel steht es im
+        // Log und laesst sich nachvollziehen.
+        const einstellungen = stream.getAudioTracks()[0]?.getSettings();
+        console.log("[BroadcastControls] Aufnahme-Einstellungen:", {
+          geraet: stream.getAudioTracks()[0]?.label,
+          echoCancellation: einstellungen?.echoCancellation,
+          noiseSuppression: einstellungen?.noiseSuppression,
+          autoGainControl: einstellungen?.autoGainControl,
+          channelCount: einstellungen?.channelCount,
+          sampleRate: einstellungen?.sampleRate,
+        });
+
         micStreamRef.current = stream;
 
         const source = ctx.createMediaStreamSource(stream);
@@ -397,6 +438,11 @@ function BroadcastControls({
 
   const isAudioActive = isMicEnabled || isTabAudioEnabled;
   let statusText = "Muted";
+  // Pause zuerst pruefen: Sie ueberlagert die Eingangsanzeige, sonst stuende
+  // dort "Live", obwohl gerade nichts uebertragen wird.
+  if (isPaused && isAudioActive) {
+    statusText = "Pausiert - Ton angehalten";
+  } else
   if (isMicEnabled && isTabAudioEnabled) {
     statusText = "Live (Mic + Tab)";
   } else if (isMicEnabled) {
@@ -414,6 +460,26 @@ function BroadcastControls({
         </h1>
         <p className="mono">{sessionId}</p>
       </div>
+
+      {/* Fernsteuerung durch Bitfocus Companion. Die gesamte Logik liegt in
+          der Komponente, damit diese Upstream-Datei moeglichst wenig abweicht. */}
+      <CompanionControl
+        sessionId={sessionId}
+        sending={isAudioActive}
+        paused={isPaused}
+        onStart={() => {
+          setIsPaused(false);
+          // Mit Standardeinstellungen senden: Mikrofoneingang an. Laeuft er
+          // schon, hebt "start" nur eine bestehende Pause auf.
+          if (!isMicEnabled) toggleMicrophone();
+        }}
+        onPause={() => setIsPaused(true)}
+        onResume={() => setIsPaused(false)}
+        onStop={() => {
+          setIsPaused(false);
+          onEndBroadcast();
+        }}
+      />
 
       {/* Audio Inputs */}
       <div style={{ marginBottom: 40 }}>

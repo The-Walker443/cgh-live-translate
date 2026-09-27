@@ -48,6 +48,14 @@ Vergleichsbasis für alle späteren Änderungen liefert.
 | `.env.example` | **neu** | Vorlage für die `.env` auf dem Server. Enthält keine Werte. |
 | `Dockerfile` | **1 Zeile ergänzt** | `ENV HOSTNAME=0.0.0.0`. Docker setzt `HOSTNAME` auf die Container-ID, und der Standalone-Server von Next liest genau diese Variable (`process.env.HOSTNAME \|\| '0.0.0.0'`). Ohne die Zeile bindet er auf den Container-Namen statt auf alle Interfaces. |
 | `.dockerignore` | **erweitert** | `.env.local` zu `.env*` verallgemeinert, damit auch `.env` und `.env.production` nie ins Image geraten. `logs` ergänzt. |
+| `src/lib/broadcast-control.ts` | **neu** | Zustandsspeicher für die Companion-Fernsteuerung. Nur im Arbeitsspeicher — Befehle sind flüchtig und ergeben nach einem Neustart ohnehin keinen Sinn. |
+| `src/app/api/control/route.ts` | **neu** | Steuer-Endpunkt für Companion. GET und POST gleichwertig, weil GET im Generic-HTTP-Modul am einfachsten einzurichten ist. PUT dient der Rückmeldung der Sendeseite. |
+| `src/components/CompanionControl.tsx` | **neu** | Holt Befehle ab und meldet den Zustand. Eigene Datei, damit die Upstream-Sendeseite kaum abweicht. |
+| `src/components/TonStarten.tsx` | **neu** | T-04: großer Knopf „Ton starten" bei blockierter Wiedergabe. Bewusst nicht die mitgelieferte `StartAudio`-Komponente — die steuert ihr `style.display` selbst und lässt sich nicht bildschirmfüllend einbetten. Setzt stattdessen auf `canPlaybackAudio`, `startAudio()` und `AudioPlaybackStatusChanged`. |
+| `COMPANION.md` | **neu** | Einrichtung der Companion-Tasten. |
+| `src/app/session/[id]/broadcast/page.tsx` | **geändert** | Drei Eingriffe: (1) T-01 — `getUserMedia` bekommt explizite Vorgaben, weil Chrome bei `audio: true` Echo-Unterdrückung, Rauschfilter und Auto-Aussteuerung einschaltet und die auf einem gemischten Pultsignal schaden; das Ergebnis wird per `getSettings()` gegengeprüft, da Chrome die Vorgaben bei manchen Treibern ignoriert. (2) Pause-Zustand, eingehängt in den vorhandenen Mute-Sync-Effekt — separat stummzuschalten hätte nicht funktioniert, da der Effekt es wieder aufgehoben hätte. (3) Einbindung von `CompanionControl`. |
+| `src/app/session/[id]/watch/page.tsx` | **geändert** | T-05: vollständig deutsche Oberfläche; technische Fehlermeldungen werden nicht mehr roh an Besucher durchgereicht. Einbindung von `TonStarten`. |
+| `src/app/session/[id]/watch/components/LanguageSelector.tsx` | **geändert** | T-05: kuratierte Sprachliste als Rückfall, native Anzeigenamen, deutsche Texte und Fehlermeldungen. |
 | `.gitignore` | **ergänzt** | `/logs` — Testlauf-Logs gehören nicht ins Repository. Dazu `!.env.example`: Das vorhandene Muster `.env*` hätte sonst auch die Vorlage ausgeschlossen, die eingecheckt werden muss. |
 
 ### Bewusst unverändert gelassen
@@ -57,6 +65,19 @@ Vergleichsbasis für alle späteren Änderungen liefert.
   Mechanismus, nicht durch Löschen von Einträgen.
 - `package-lock.json` — `npm install` hatte nur `peer`-Metadaten umsortiert,
   ohne Versionsänderung. Zurückgesetzt, um den Diff sauber zu halten.
+
+---
+
+## Warum T-01 nur halb umgesetzt ist
+
+T-01 sah ursprünglich ein Dropdown zur Gerätewahl vor. Das ist **entfallen**:
+Chrome lässt das Eingangsgerät pro Seite auswählen, und der Sende-PC hat das
+Pultsignal bereits als Eingang. Ein eigenes Dropdown wäre doppelte Bedienung
+für dieselbe Sache gewesen.
+
+Geblieben ist der Teil, den Chrome **nicht** anbietet: das Abschalten der
+Signalaufbereitung. Dafür gibt es in Chrome keine Einstellung, es geht nur beim
+Anfordern des Audios.
 
 ---
 

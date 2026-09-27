@@ -18,6 +18,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from "@/lib/languages";
+import { GEMEINDE_LANGUAGES, getNativeLanguageName } from "@/config/gemeinde";
 
 interface LanguageSelectorProps {
   sessionId: string;
@@ -105,12 +106,15 @@ export default function LanguageSelector({
         const data = await res.json();
 
         if (!res.ok) {
-          throw new Error(data.error || "Translation request failed");
+          throw new Error(data.error || "Die Übersetzung konnte nicht gestartet werden.");
         }
 
         onLanguageChange(langCode, data.translatorIdentity);
       } catch (err) {
-        setError((err as Error).message);
+        // Besucher sollen keine technischen Meldungen sehen. Der Originaltext
+        // landet in der Konsole, die Anzeige bleibt verstaendlich.
+        console.error("[LanguageSelector]", err);
+        setError("Die Übersetzung ist gerade nicht erreichbar. Bitte noch einmal versuchen.");
         console.error("Translation request error:", err);
       } finally {
         setLoading(false);
@@ -121,14 +125,19 @@ export default function LanguageSelector({
 
   const currentLang = getLanguageByCode(currentLanguage);
 
-  const visibleLanguages = allowedLanguages
-    ? SUPPORTED_LANGUAGES.filter((lang) => allowedLanguages.includes(lang.code))
-    : SUPPORTED_LANGUAGES;
+  // Gibt die Session nichts vor, gilt die kuratierte Gemeindeliste. Die
+  // vollen 70+ Sprachen des Upstream sind fuer Besucher unbrauchbar. Setzt die
+  // Session eigene allowedLanguages, haben die Vorrang - damit bleibt die
+  // Auswahl zur Laufzeit erweiterbar.
+  const erlaubt = allowedLanguages ?? GEMEINDE_LANGUAGES;
+  const visibleLanguages = SUPPORTED_LANGUAGES.filter((lang) =>
+    erlaubt.includes(lang.code)
+  );
 
   return (
     <div style={{ width: "100%" }}>
       <label htmlFor="language-select" className="label" style={{ display: "block", marginBottom: 10 }}>
-        Language
+        Sprache / Language
       </label>
 
       <div style={{ position: "relative" }}>
@@ -143,11 +152,11 @@ export default function LanguageSelector({
             cursor: (loading || disabled) ? "not-allowed" : "pointer",
           }}
         >
-          <option value="original">Original audio</option>
-          <optgroup label="Translations">
+          <option value="original">Original (Deutsch)</option>
+          <optgroup label="Übersetzungen">
             {visibleLanguages.map((lang) => (
               <option key={lang.code} value={lang.code}>
-                {lang.name} {lang.flag}
+                {getNativeLanguageName(lang.code, lang.name)} {lang.flag}
               </option>
             ))}
           </optgroup>
@@ -165,14 +174,14 @@ export default function LanguageSelector({
         {currentLanguage !== "original" && currentLang && !loading && (
           <span className="status status--active">
             <span className="status-dot pulse" />
-            Translating to {currentLang.name}
+            Übersetzung nach {getNativeLanguageName(currentLang.code, currentLang.name)}
           </span>
         )}
 
         {loading && (
           <span className="status status--waiting">
             <span className="status-dot pulse" />
-            Starting translation…
+            Übersetzung wird gestartet …
           </span>
         )}
 
