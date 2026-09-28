@@ -97,6 +97,17 @@ curl http://localhost:8080/api/auth/status
 Der Container hat einen Healthcheck; `docker compose ps` zeigt `healthy`,
 sobald die App antwortet.
 
+### Welcher Stand läuft gerade?
+
+Jedes Image trägt den Commit, aus dem es gebaut wurde, als Label:
+
+```bash
+docker inspect --format '{{index .Config.Labels "org.opencontainers.image.revision"}}' live-uebersetzung
+```
+
+Das Ergebnis mit dem neuesten Commit auf `main` vergleichen. Stimmen sie nicht
+überein, läuft ein alter Stand — siehe Stolpersteine.
+
 ### Aktualisieren
 
 ```bash
@@ -151,3 +162,5 @@ zweifach — über LiveKit und über Google. Siehe `ANPASSUNGEN.md`.
 | Container läuft, aber nicht erreichbar | Portkonflikt auf dem Server | `APP_PORT` in der `.env` ändern |
 | `no matching manifest` | Falsche CPU-Architektur | Die Action baut amd64 und arm64; prüfen, ob der Lauf durchlief |
 | Hörer bekommt keinen Ton | App per HTTP über LAN-IP aufgerufen | HTTPS einrichten, siehe T-07 |
+| **Update kommt nicht an**, `pull` sagt „up to date" | In der `.env` steht ein Tag, der nicht mehr gebaut wird — etwa `:gemeinde`. Seit der Umstellung auf „nur `main` veröffentlicht" wird ausschließlich `latest`, `main` und `sha-<commit>` aktualisiert. | `IMAGE=ghcr.io/the-walker443/cgh-live-translate:latest` setzen, dann `docker compose pull && docker compose up -d --force-recreate` |
+| Container läuft auf altem Stand | Tag unverändert, daher wurde der Container nicht neu erzeugt | `docker compose up -d --force-recreate` |
