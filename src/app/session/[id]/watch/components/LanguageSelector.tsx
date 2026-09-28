@@ -18,7 +18,7 @@
 
 import { useState, useCallback, useEffect, useRef } from "react";
 import { SUPPORTED_LANGUAGES, getLanguageByCode } from "@/lib/languages";
-import { GEMEINDE_LANGUAGES, getNativeLanguageName } from "@/config/gemeinde";
+import { getNativeLanguageName } from "@/config/gemeinde";
 
 interface LanguageSelectorProps {
   sessionId: string;
@@ -125,14 +125,12 @@ export default function LanguageSelector({
 
   const currentLang = getLanguageByCode(currentLanguage);
 
-  // Gibt die Session nichts vor, gilt die kuratierte Gemeindeliste. Die
-  // vollen 70+ Sprachen des Upstream sind fuer Besucher unbrauchbar. Setzt die
-  // Session eigene allowedLanguages, haben die Vorrang - damit bleibt die
-  // Auswahl zur Laufzeit erweiterbar.
-  const erlaubt = allowedLanguages ?? GEMEINDE_LANGUAGES;
-  const visibleLanguages = SUPPORTED_LANGUAGES.filter((lang) =>
-    erlaubt.includes(lang.code)
-  );
+  // Massgeblich ist allein, was beim Anlegen der Session ausgewaehlt wurde.
+  // Hier wird bewusst NICHT zusaetzlich gefiltert: Die Hoerer sollen genau die
+  // Sprachen sehen, die der Sender freigegeben hat - nicht weniger.
+  const visibleLanguages = allowedLanguages
+    ? SUPPORTED_LANGUAGES.filter((lang) => allowedLanguages.includes(lang.code))
+    : SUPPORTED_LANGUAGES;
 
   return (
     <div style={{ width: "100%" }}>

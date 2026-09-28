@@ -19,6 +19,7 @@
 import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { SUPPORTED_LANGUAGES } from "@/lib/languages";
+import { GEMEINDE_LANGUAGES } from "@/config/gemeinde";
 
 export default function Home() {
   const router = useRouter();
@@ -29,8 +30,10 @@ export default function Home() {
   const [error, setError] = useState<string | null>(null);
   
   const [restrictLanguages, setRestrictLanguages] = useState(true);
+  // Vorauswahl, keine Festlegung: Die vollstaendige Liste bleibt hier
+  // auswaehlbar, und was hier ausgewaehlt ist, bekommen die Hoerer angeboten.
   const [selectedLanguages, setSelectedLanguages] = useState<string[]>([
-    "en", "zh-Hans", "hi", "es", "fr", "ar", "bn", "pt-BR", "ru", "ur"
+    ...GEMEINDE_LANGUAGES,
   ]);
   const [langSearch, setLangSearch] = useState("");
   const [systemInstruction, setSystemInstruction] = useState("");

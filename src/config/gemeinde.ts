@@ -7,10 +7,19 @@
  */
 
 /**
- * Sprachen, die Besuchern standardmaessig angeboten werden.
+ * Vorauswahl beim Anlegen einer Session - KEINE Festlegung.
  *
- * Die Codes muessen exakt denen in `SUPPORTED_LANGUAGES` entsprechen,
- * sonst filtert der LanguageSelector sie stillschweigend weg.
+ * Diese Sprachen sind auf der Startseite vorangehakt, damit der uebliche Fall
+ * ohne Klickarbeit auskommt. Die vollstaendige Liste bleibt dort auswaehlbar:
+ * Haken lassen sich entfernen und beliebige andere Sprachen hinzufuegen.
+ *
+ * Was die Hoerer angeboten bekommen, entscheidet allein diese Auswahl beim
+ * Anlegen der Session. Auf der Hoererseite wird bewusst nicht noch einmal
+ * gefiltert - sonst koennte der Sender eine Sprache freigeben, die beim
+ * Besucher gar nicht auftaucht.
+ *
+ * Die Codes muessen exakt denen in `SUPPORTED_LANGUAGES` entsprechen, sonst
+ * greift die Vorauswahl ins Leere.
  * Geprueft gegen src/lib/languages.ts: alle fuenf vorhanden.
  *
  * Bewusst `zh-Hans` (vereinfacht) und nicht `zh-Hant`. Zeigt sich Bedarf

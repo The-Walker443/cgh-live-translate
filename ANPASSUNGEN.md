@@ -55,7 +55,9 @@ Vergleichsbasis für alle späteren Änderungen liefert.
 | `COMPANION.md` | **neu** | Einrichtung der Companion-Tasten. |
 | `src/app/session/[id]/broadcast/page.tsx` | **geändert** | Drei Eingriffe: (1) T-01 — `getUserMedia` bekommt explizite Vorgaben, weil Chrome bei `audio: true` Echo-Unterdrückung, Rauschfilter und Auto-Aussteuerung einschaltet und die auf einem gemischten Pultsignal schaden; das Ergebnis wird per `getSettings()` gegengeprüft, da Chrome die Vorgaben bei manchen Treibern ignoriert. (2) Pause-Zustand, eingehängt in den vorhandenen Mute-Sync-Effekt — separat stummzuschalten hätte nicht funktioniert, da der Effekt es wieder aufgehoben hätte. (3) Einbindung von `CompanionControl`. |
 | `src/app/session/[id]/watch/page.tsx` | **geändert** | T-05: vollständig deutsche Oberfläche; technische Fehlermeldungen werden nicht mehr roh an Besucher durchgereicht. Einbindung von `TonStarten`. |
-| `src/app/session/[id]/watch/components/LanguageSelector.tsx` | **geändert** | T-05: kuratierte Sprachliste als Rückfall, native Anzeigenamen, deutsche Texte und Fehlermeldungen. |
+| `src/app/session/[id]/watch/components/LanguageSelector.tsx` | **geändert** | T-05: native Anzeigenamen, deutsche Texte und Fehlermeldungen. Die Sprachauswahl selbst folgt weiter dem Upstream-Verhalten — maßgeblich ist allein, was beim Anlegen der Session freigegeben wurde. |
+| `src/app/page.tsx` | **geändert** | Vorauswahl der Sprachen beim Anlegen einer Session auf `GEMEINDE_LANGUAGES` umgestellt (Upstream hatte dort ebenfalls eine feste Liste: en, zh-Hans, hi, es, fr, ar, bn, pt-BR, ru, ur). |
+| `README.md` | **ersetzt** | Eigenes README für Installation, Konfiguration und Nutzung. Das englische Original liegt unverändert als `README.upstream.md` bei. |
 | `.gitignore` | **ergänzt** | `/logs` — Testlauf-Logs gehören nicht ins Repository. Dazu `!.env.example`: Das vorhandene Muster `.env*` hätte sonst auch die Vorlage ausgeschlossen, die eingecheckt werden muss. |
 
 ### Bewusst unverändert gelassen
