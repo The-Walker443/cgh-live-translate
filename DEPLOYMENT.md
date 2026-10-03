@@ -182,7 +182,7 @@ nutzlos, deshalb muss die richtige ausdrücklich gesetzt werden.
 
 **3. Reverse Proxy für die Signalisierung**
 
-`livekit.<domain>` → `livekit:7880`, mit TLS und **WebSocket-Upgrade**. Ohne
+`livekit.<domain>` → `cgh-livekit:7880`, mit TLS und **WebSocket-Upgrade**. Ohne
 das Upgrade schlägt die Verbindung fehl, ohne eine verständliche Fehlermeldung.
 
 **4. Medienports**
@@ -206,7 +206,7 @@ nicht mehr dieselben:
 | Variable | Wer nutzt sie | Wert |
 | :--- | :--- | :--- |
 | `LIVEKIT_URL` | der Browser des Besuchers | `wss://livekit.<domain>` |
-| `LIVEKIT_URL_INTERNAL` | die Übersetzer-Bridge im Container | `ws://livekit:7880` |
+| `LIVEKIT_URL_INTERNAL` | die Übersetzer-Bridge im Container | `ws://cgh-livekit:7880` |
 
 Ohne die zweite müsste der Container die öffentliche Adresse auflösen und über
 den Router zu sich selbst zurückfinden. Das scheitert auf vielen Routern an
@@ -233,7 +233,7 @@ zweifach — über LiveKit und über Google. Siehe `ANPASSUNGEN.md`.
 | `no matching manifest` | Falsche CPU-Architektur | Die Action baut amd64 und arm64; prüfen, ob der Lauf durchlief |
 | Hörer bekommt keinen Ton | App per HTTP über LAN-IP aufgerufen | HTTPS einrichten, siehe T-07 |
 | **Update kommt nicht an**, `pull` sagt „up to date" | In der `.env` steht ein Tag, der nicht mehr gebaut wird — etwa `:gemeinde`. Seit der Umstellung auf „nur `main` veröffentlicht" wird ausschließlich `latest`, `main` und `sha-<commit>` aktualisiert. | `IMAGE=ghcr.io/cghersbruck/cgh-live-translate:latest` setzen, dann `docker compose pull && docker compose up -d --force-recreate` |
-| Hörer verbindet, aber Übersetzung startet nie | Bridge erreicht LiveKit nicht — `LIVEKIT_URL_INTERNAL` fehlt oder zeigt auf die öffentliche Adresse | `LIVEKIT_URL_INTERNAL=ws://livekit:7880` setzen |
-| Verbindung bricht sofort ab, kein Ton | Reverse Proxy reicht kein WebSocket-Upgrade an `livekit:7880` durch | Upgrade-Header im Proxy aktivieren |
+| Hörer verbindet, aber Übersetzung startet nie | Bridge erreicht LiveKit nicht — `LIVEKIT_URL_INTERNAL` fehlt oder zeigt auf die öffentliche Adresse | `LIVEKIT_URL_INTERNAL=ws://cgh-livekit:7880` setzen |
+| Verbindung bricht sofort ab, kein Ton | Reverse Proxy reicht kein WebSocket-Upgrade an `cgh-livekit:7880` durch | Upgrade-Header im Proxy aktivieren |
 | Ton nur im selben WLAN, nicht von außen (oder umgekehrt) | `node_ip` bzw. `use_external_ip` passen nicht zum Nutzungsfall | `livekit.yaml` anpassen, siehe oben |
 | Container läuft auf altem Stand | Tag unverändert, daher wurde der Container nicht neu erzeugt | `docker compose up -d --force-recreate` |

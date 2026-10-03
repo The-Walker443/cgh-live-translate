@@ -72,7 +72,7 @@ LiveKit.
 | `LIVEKIT_API_KEY` | Zugangsdaten des LiveKit-Servers |
 | `LIVEKIT_API_SECRET` | dito |
 | `LIVEKIT_URL` | `wss://…` — **die Adresse aus Sicht des Besucher-Handys**, nie `localhost` |
-| `LIVEKIT_URL_INTERNAL` | Adresse aus Sicht des Servers, bei lokalem LiveKit `ws://livekit:7880`. Bei LiveKit Cloud leer lassen. |
+| `LIVEKIT_URL_INTERNAL` | Adresse aus Sicht des Servers, bei lokalem LiveKit `ws://cgh-livekit:7880`. Bei LiveKit Cloud leer lassen. |
 | `GEMINI_API_KEY` | Schlüssel aus einem Projekt mit aktivierter Abrechnung |
 | `BROADCAST_PASSWORD` | Schützt die Sender-Seite |
 

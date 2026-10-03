@@ -9,7 +9,7 @@
 #
 # Der Reverse Proxy im Netz proxy_net bedient zwei Namen:
 #   uebersetzung.<domain>  ->  translate:8080
-#   livekit.<domain>       ->  livekit:7880   (WebSocket-Upgrade noetig!)
+#   livekit.<domain>       ->  cgh-livekit:7880   (WebSocket-Upgrade noetig!)
 #
 # Der Medienverkehr laeuft NICHT ueber den Reverse Proxy, sondern direkt auf
 # die unten veroeffentlichten Ports 7881/tcp und 7882/udp.
@@ -20,7 +20,7 @@ services:
     container_name: cgh-live-translate
     restart: unless-stopped
     depends_on:
-      - livekit
+      - cgh-livekit
     environment:
       LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
       LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
@@ -34,7 +34,7 @@ services:
       # ueber Reverse Proxy und Router. Ohne diese Trennung scheitert die
       # Bridge auf vielen Routern an fehlendem NAT-Hairpin, und zwar erst,
       # wenn der erste Hoerer eine Sprache waehlt.
-      LIVEKIT_URL_INTERNAL: ${LIVEKIT_URL_INTERNAL:-ws://livekit:7880}
+      LIVEKIT_URL_INTERNAL: ${LIVEKIT_URL_INTERNAL:-ws://cgh-livekit:7880}
 
       GEMINI_API_KEY: ${GEMINI_API_KEY}
       BROADCAST_PASSWORD: ${BROADCAST_PASSWORD}
@@ -67,7 +67,10 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  livekit:
+  # Dienstname bewusst gleich dem Containernamen. Im DNS registriert sich der
+  # SERVICE-Name, nicht container_name - "livekit" waere im geteilten Netz
+  # proxy_net aber zu generisch und koennte mit einem anderen Stack kollidieren.
+  cgh-livekit:
     # Bewusst auf die Nebenversion gepinnt statt latest: Ein unbemerkter
     # Sprung auf eine neue Hauptversion waere am Sonntagmorgen die denkbar
     # schlechteste Ueberraschung. v1.13 holt weiterhin Fehlerkorrekturen.
