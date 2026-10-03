@@ -1,0 +1,70 @@
+# Konfiguration des selbst gehosteten LiveKit-Servers.
+#
+# Wird von docker-compose.yml schreibgeschuetzt eingehaengt.
+# Nach jeder Aenderung:  docker compose restart livekit
+
+port: 7880
+
+# Auf allen Schnittstellen im Container lauschen.
+bind_addresses:
+  - ""
+
+rtc:
+  # Ein einziger UDP-Port statt des Standardbereichs 50000-60000.
+  # LiveKit multiplext allen Medienverkehr darueber. Das macht die
+  # Portfreigabe im Router zu genau einer Zeile statt zehntausend.
+  udp_port: 7882
+
+  # Rueckfallweg, wenn UDP blockiert ist - in Gaeste-WLANs keine Seltenheit.
+  tcp_port: 7881
+
+  # ---------------------------------------------------------------------
+  # WICHTIG: Welche IP meldet LiveKit den Handys?
+  #
+  # Im Docker-Bridge-Netz kennt der Container nur seine interne Adresse
+  # (172.x.x.x). Die ist fuer die Besucher nutzlos. Es muss also explizit
+  # gesagt werden, unter welcher Adresse der Server erreichbar ist.
+  #
+  # use_external_ip: true  -> LiveKit ermittelt die OEFFENTLICHE IP per STUN.
+  #                           Richtig, wenn die Besucher aus dem Internet
+  #                           kommen. Fuer Handys im selben WLAN meist falsch,
+  #                           weil der Router den Weg nach aussen und wieder
+  #                           zurueck oft nicht zulaesst (fehlendes
+  #                           NAT-Hairpin).
+  #
+  # use_external_ip: false -> Es gilt node_ip (siehe unten). Richtig fuer den
+  #                           Normalfall: Besucher sitzen im Haus und sind im
+  #                           Gaeste-WLAN.
+  #
+  # Achtung: use_external_ip hat VORRANG. node_ip wirkt nur, wenn hier
+  # ausdruecklich false steht.
+  # ---------------------------------------------------------------------
+  use_external_ip: false
+
+  # >>> HIER DIE LAN-ADRESSE DER NAS EINTRAGEN <<<
+  # Die feste IP, unter der die NAS im Gemeindenetz erreichbar ist.
+  # Beispiel: 192.168.1.50
+  node_ip: "CHANGEME"
+
+# API-Schluessel. Muessen mit LIVEKIT_API_KEY und LIVEKIT_API_SECRET aus der
+# .env uebereinstimmen, sonst werden alle Tokens abgelehnt.
+#
+# Format ist  schluessel: geheimnis
+# Erzeugen laesst sich ein Paar mit:
+#   docker run --rm livekit/livekit-server generate-keys
+keys:
+  CHANGEME_KEY: CHANGEME_SECRET
+
+logging:
+  level: info
+  json: false
+
+# TURN waere der naechste Schritt, falls sich in einem restriktiven Netz
+# Handys trotz TCP-Rueckfall nicht verbinden koennen. Braucht ein eigenes
+# Zertifikat und Port 443 oder 5349 und wird deshalb erst bei Bedarf
+# eingeschaltet.
+#
+# turn:
+#   enabled: true
+#   domain: livekit.beispiel.de
+#   tls_port: 5349

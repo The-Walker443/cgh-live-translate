@@ -138,13 +138,64 @@ Das betrifft nur den Medientransport, nicht die Auslieferung der Seite.
 
 ### Selbst gehostetes LiveKit
 
-In der `docker-compose.yml` ist ein Dienst `livekit` unter dem Profil `livekit`
-vorbereitet, aber standardmäßig aus. Er ist **nicht schlüsselfertig**; vorher zu
-klären sind Zertifikat, UDP-Portbereich im Router und eigene Schlüssel. Details
-stehen als Kommentar in der Datei und in `ANPASSUNGEN.md`.
+Die `docker-compose.yml` betreibt LiveKit als eigenen Dienst. Einzurichten sind:
+
+**1. Schlüsselpaar erzeugen**
+
+```bash
+docker run --rm livekit/livekit-server generate-keys
+```
+
+Das Ergebnis an zwei Stellen eintragen — sie müssen übereinstimmen, sonst
+werden alle Tokens abgelehnt:
+- `livekit.yaml` im Abschnitt `keys`
+- `.env` als `LIVEKIT_API_KEY` und `LIVEKIT_API_SECRET`
+
+**2. `node_ip` in `livekit.yaml` setzen**
+
+Die feste LAN-Adresse der NAS, etwa `192.168.1.50`. Im Docker-Bridge-Netz kennt
+der Container nur seine interne Adresse (172.x) — die ist für die Besucher
+nutzlos, deshalb muss die richtige ausdrücklich gesetzt werden.
+
+> `use_external_ip` hat **Vorrang** vor `node_ip`. Es muss ausdrücklich auf
+> `false` stehen, sonst wird `node_ip` ignoriert und LiveKit meldet den Handys
+> die öffentliche IP. Für Besucher im Haus ist das in der Regel falsch.
+
+**3. Reverse Proxy für die Signalisierung**
+
+`livekit.<domain>` → `livekit:7880`, mit TLS und **WebSocket-Upgrade**. Ohne
+das Upgrade schlägt die Verbindung fehl, ohne eine verständliche Fehlermeldung.
+
+**4. Medienports**
+
+Der Medienverkehr kann **nicht** über einen HTTP-Reverse-Proxy laufen und geht
+direkt auf die veröffentlichten Ports:
+
+| Port | Zweck |
+| :--- | :--- |
+| `7882/udp` | eigentlicher Medienverkehr (ein einziger Port dank UDP-Multiplexing) |
+| `7881/tcp` | Rückfallweg, wenn UDP blockiert ist — in Gäste-WLANs keine Seltenheit |
+
+Sollen Besucher auch von außerhalb des WLANs zuhören, müssen beide im Router
+auf die NAS zeigen.
+
+### Zwei Adressen, nicht eine
+
+`LIVEKIT_URL` wird an zwei Stellen gebraucht, und bei lokalem LiveKit sind es
+nicht mehr dieselben:
+
+| Variable | Wer nutzt sie | Wert |
+| :--- | :--- | :--- |
+| `LIVEKIT_URL` | der Browser des Besuchers | `wss://livekit.<domain>` |
+| `LIVEKIT_URL_INTERNAL` | die Übersetzer-Bridge im Container | `ws://livekit:7880` |
+
+Ohne die zweite müsste der Container die öffentliche Adresse auflösen und über
+den Router zu sich selbst zurückfinden. Das scheitert auf vielen Routern an
+fehlendem NAT-Hairpin — und zwar erst zur Laufzeit, sobald der erste Hörer eine
+Sprache wählt. Bei LiveKit Cloud bleibt `LIVEKIT_URL_INTERNAL` einfach leer.
 
 Merksatz: `LIVEKIT_URL` ist immer die Adresse aus Sicht des Besucher-Handys,
-niemals `localhost`.
+niemals `localhost` und niemals der Containername.
 
 ### Datenschutz
 
@@ -163,4 +214,7 @@ zweifach — über LiveKit und über Google. Siehe `ANPASSUNGEN.md`.
 | `no matching manifest` | Falsche CPU-Architektur | Die Action baut amd64 und arm64; prüfen, ob der Lauf durchlief |
 | Hörer bekommt keinen Ton | App per HTTP über LAN-IP aufgerufen | HTTPS einrichten, siehe T-07 |
 | **Update kommt nicht an**, `pull` sagt „up to date" | In der `.env` steht ein Tag, der nicht mehr gebaut wird — etwa `:gemeinde`. Seit der Umstellung auf „nur `main` veröffentlicht" wird ausschließlich `latest`, `main` und `sha-<commit>` aktualisiert. | `IMAGE=ghcr.io/the-walker443/cgh-live-translate:latest` setzen, dann `docker compose pull && docker compose up -d --force-recreate` |
+| Hörer verbindet, aber Übersetzung startet nie | Bridge erreicht LiveKit nicht — `LIVEKIT_URL_INTERNAL` fehlt oder zeigt auf die öffentliche Adresse | `LIVEKIT_URL_INTERNAL=ws://livekit:7880` setzen |
+| Verbindung bricht sofort ab, kein Ton | Reverse Proxy reicht kein WebSocket-Upgrade an `livekit:7880` durch | Upgrade-Header im Proxy aktivieren |
+| Ton nur im selben WLAN, nicht von außen (oder umgekehrt) | `node_ip` bzw. `use_external_ip` passen nicht zum Nutzungsfall | `livekit.yaml` anpassen, siehe oben |
 | Container läuft auf altem Stand | Tag unverändert, daher wurde der Container nicht neu erzeugt | `docker compose up -d --force-recreate` |

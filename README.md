@@ -27,8 +27,8 @@ wieder abgebaut.
 
 ## Installation
 
-Auf dem Server werden nur zwei Dateien gebraucht: `docker-compose.yml` und
-`.env`. Der Quellcode wird dort nicht benötigt — das Image baut GitHub bei
+Auf dem Server werden drei Dateien gebraucht: `docker-compose.yml`,
+`livekit.yaml` und `.env`. Der Quellcode wird dort nicht benötigt — das Image baut GitHub bei
 jedem Push nach `main` automatisch.
 
 ```bash
@@ -36,6 +36,7 @@ mkdir -p /volume1/docker/live-uebersetzung
 cd /volume1/docker/live-uebersetzung
 
 curl -O https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/livekit.yaml
 curl -o .env https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/.env.example
 ```
 
@@ -71,6 +72,7 @@ LiveKit.
 | `LIVEKIT_API_KEY` | Zugangsdaten des LiveKit-Servers |
 | `LIVEKIT_API_SECRET` | dito |
 | `LIVEKIT_URL` | `wss://…` — **die Adresse aus Sicht des Besucher-Handys**, nie `localhost` |
+| `LIVEKIT_URL_INTERNAL` | Adresse aus Sicht des Servers, bei lokalem LiveKit `ws://livekit:7880`. Bei LiveKit Cloud leer lassen. |
 | `GEMINI_API_KEY` | Schlüssel aus einem Projekt mit aktivierter Abrechnung |
 | `BROADCAST_PASSWORD` | Schützt die Sender-Seite |
 

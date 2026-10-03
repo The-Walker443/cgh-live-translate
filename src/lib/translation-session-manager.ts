@@ -121,7 +121,22 @@ class TranslationSessionManager {
 
     const config = {
       geminiApiKey: process.env.GEMINI_API_KEY!,
-      livekitUrl: process.env.LIVEKIT_URL || "ws://localhost:7880",
+      // LIVEKIT_URL ist die Adresse aus Sicht des Besucher-Handys und wird in
+      // api/token an den Browser gereicht. Die Bridge laeuft dagegen
+      // serverseitig: Liegt LiveKit im selben Docker-Netz, erreicht sie es
+      // direkt unter seinem Dienstnamen.
+      //
+      // Ohne diese Trennung muesste der Container die oeffentliche Adresse
+      // aufloesen und ueber den Reverse Proxy zurueckfinden. Das scheitert auf
+      // vielen Routern an fehlendem NAT-Hairpin - und zwar erst zur Laufzeit,
+      // wenn der erste Hoerer eine Sprache waehlt.
+      //
+      // Ist LIVEKIT_URL_INTERNAL nicht gesetzt, bleibt das Verhalten exakt wie
+      // bisher. Fuer LiveKit Cloud aendert sich dadurch nichts.
+      livekitUrl:
+        process.env.LIVEKIT_URL_INTERNAL ||
+        process.env.LIVEKIT_URL ||
+        "ws://localhost:7880",
       livekitApiKey: process.env.LIVEKIT_API_KEY!,
       livekitApiSecret: process.env.LIVEKIT_API_SECRET!,
       systemInstruction: session?.systemInstruction,

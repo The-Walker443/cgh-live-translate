@@ -1,77 +1,110 @@
-# Bereitstellung der Live-Uebersetzung.
+# Bereitstellung der Live-Uebersetzung mit lokal betriebenem LiveKit.
 #
-# Auf dem Server werden nur zwei Dateien gebraucht: diese hier und eine .env
-# mit den Zugangsdaten (Vorlage: .env.example). Der Quellcode wird nicht
-# benoetigt - das Image kommt fertig gebaut aus der GitHub Container Registry.
+# Benoetigte Dateien auf dem Server:
+#   docker-compose.yml   diese Datei
+#   livekit.yaml         Konfiguration des LiveKit-Servers
+#   .env                 Zugangsdaten (Vorlage: .env.example)
 #
-#   docker compose pull
-#   docker compose up -d
+#   docker compose pull && docker compose up -d
 #
-# Aktualisieren spaeter mit demselben Befehlspaar.
+# Der Reverse Proxy im Netz proxy_net bedient zwei Namen:
+#   uebersetzung.<domain>  ->  translate:8080
+#   livekit.<domain>       ->  livekit:7880   (WebSocket-Upgrade noetig!)
+#
+# Der Medienverkehr laeuft NICHT ueber den Reverse Proxy, sondern direkt auf
+# die unten veroeffentlichten Ports 7881/tcp und 7882/udp.
 
 services:
-  app:
-    # Wird in der .env gesetzt, z. B.
-    #   IMAGE=ghcr.io/<benutzer>/<repo>:latest
-    image: ${IMAGE:?In der .env muss IMAGE gesetzt sein}
-    container_name: live-uebersetzung
+  translate:
+    image: ${IMAGE}
+    container_name: cgh-live-translate
     restart: unless-stopped
+    depends_on:
+      - livekit
+    environment:
+      LIVEKIT_API_KEY: ${LIVEKIT_API_KEY}
+      LIVEKIT_API_SECRET: ${LIVEKIT_API_SECRET}
 
-    # Alle Zugangsdaten kommen zur Laufzeit herein. Im Image ist nichts davon
-    # eingebacken - dieselbe Image-Datei laeuft gegen LiveKit Cloud wie gegen
-    # ein selbst gehostetes LiveKit auf der NAS.
-    env_file:
-      - .env
+      # Adresse aus Sicht des BESUCHER-HANDYS. Geht per API an den Browser.
+      # Muss von aussen erreichbar und per TLS abgesichert sein.
+      LIVEKIT_URL: ${LIVEKIT_URL}
 
-    ports:
-      - "${APP_PORT:-8080}:8080"
+      # Adresse aus Sicht des SERVERS. Die Uebersetzer-Bridge laeuft im
+      # Container und erreicht LiveKit direkt im Docker-Netz - ohne Umweg
+      # ueber Reverse Proxy und Router. Ohne diese Trennung scheitert die
+      # Bridge auf vielen Routern an fehlendem NAT-Hairpin, und zwar erst,
+      # wenn der erste Hoerer eine Sprache waehlt.
+      LIVEKIT_URL_INTERNAL: ${LIVEKIT_URL_INTERNAL:-ws://livekit:7880}
 
-    # node:22-slim enthaelt weder curl noch wget, daher Node selbst.
+      GEMINI_API_KEY: ${GEMINI_API_KEY}
+      BROADCAST_PASSWORD: ${BROADCAST_PASSWORD}
+      NODE_ENV: production
+      PORT: "8080"
+      TZ: ${TZ:-Europe/Berlin}
+    networks:
+      - proxy_net
+    read_only: true
+    tmpfs:
+      - /tmp
+      - /app/.next/cache
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
     healthcheck:
       test:
-        [
-          "CMD",
-          "node",
-          "-e",
-          "fetch('http://127.0.0.1:8080/api/auth/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))",
-        ]
+        - CMD
+        - node
+        - -e
+        - "fetch('http://127.0.0.1:8080/api/auth/status').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
       interval: 30s
       timeout: 5s
       retries: 3
       start_period: 20s
-
     logging:
       driver: json-file
       options:
         max-size: "10m"
         max-file: "3"
 
-  # ---------------------------------------------------------------------
-  # Selbst gehostetes LiveKit - Ausbaustufe, standardmaessig AUS.
-  #
-  # Starten mit:  docker compose --profile livekit up -d
-  #
-  # ACHTUNG, das ist nicht schluesselfertig. Zu klaeren ist vorher:
-  #  - TLS. Besucher-Handys verbinden sich per wss://, dafuer braucht dieser
-  #    Dienst ein gueltiges Zertifikat (ueblicherweise ueber einen Reverse
-  #    Proxy davor). Das ist der eigentliche Aufwand des NAS-Umzugs.
-  #  - UDP-Ports. WebRTC braucht einen freigegebenen UDP-Bereich; er muss im
-  #    Router auf die NAS zeigen.
-  #  - Schluessel. Die Werte aus der .env gelten dann auch hier; die
-  #    Entwicklungsschluessel von LiveKit Cloud sind dafuer ungeeignet.
-  #
-  # Merksatz: LIVEKIT_URL ist die Adresse aus Sicht des BESUCHER-HANDYS,
-  # niemals localhost.
-  # ---------------------------------------------------------------------
   livekit:
-    profiles: ["livekit"]
-    image: livekit/livekit-server:latest
-    container_name: livekit
+    # Bewusst auf die Nebenversion gepinnt statt latest: Ein unbemerkter
+    # Sprung auf eine neue Hauptversion waere am Sonntagmorgen die denkbar
+    # schlechteste Ueberraschung. v1.13 holt weiterhin Fehlerkorrekturen.
+    image: livekit/livekit-server:v1.13
+    container_name: cgh-livekit
     restart: unless-stopped
-    command: --config /etc/livekit.yaml
+    command: ["--config", "/etc/livekit/livekit.yaml"]
+    environment:
+      TZ: ${TZ:-Europe/Berlin}
     volumes:
-      - ./livekit.yaml:/etc/livekit.yaml:ro
+      - ./livekit.yaml:/etc/livekit/livekit.yaml:ro
     ports:
-      - "7880:7880"          # Signalisierung (HTTP/WebSocket)
-      - "7881:7881"          # WebRTC ueber TCP
-      - "50000-50100:50000-50100/udp"  # WebRTC Medien
+      # Signalisierung (7880) wird bewusst NICHT veroeffentlicht - die laeuft
+      # ueber den Reverse Proxy, der fuer TLS sorgt. Handys verbinden sich
+      # ueber wss://, und das verlangt ein gueltiges Zertifikat.
+
+      # Medienverkehr dagegen kann kein HTTP-Proxy weiterreichen und muss
+      # direkt erreichbar sein:
+      - "${LIVEKIT_TCP_PORT:-7881}:7881/tcp"   # Rueckfall, wenn UDP blockiert
+      - "${LIVEKIT_UDP_PORT:-7882}:7882/udp"   # eigentlicher Medienverkehr
+    networks:
+      - proxy_net
+    security_opt:
+      - "no-new-privileges:true"
+    cap_drop:
+      - ALL
+    # Falls LiveKit nicht startet, sind diese beiden Zeilen der erste
+    # Verdacht - sie sind nicht in diesem Aufbau erprobt.
+    read_only: true
+    tmpfs:
+      - /tmp
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+networks:
+  proxy_net:
+    external: true
