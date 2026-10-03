@@ -27,8 +27,8 @@ wieder abgebaut.
 
 ## Installation
 
-Auf dem Server werden drei Dateien gebraucht: `docker-compose.yml`,
-`livekit.yaml` und `.env`. Der Quellcode wird dort nicht benötigt — das Image baut GitHub bei
+Auf dem Server werden nur zwei Dateien gebraucht: `docker-compose.yml`
+und `.env`. Der Quellcode wird dort nicht benötigt — das Image baut GitHub bei
 jedem Push nach `main` automatisch.
 
 ```bash
@@ -36,7 +36,6 @@ mkdir -p /volume1/docker/live-uebersetzung
 cd /volume1/docker/live-uebersetzung
 
 curl -O https://raw.githubusercontent.com/cghersbruck/cgh-live-translate/main/docker-compose.yml
-curl -O https://raw.githubusercontent.com/cghersbruck/cgh-live-translate/main/livekit.yaml
 curl -o .env https://raw.githubusercontent.com/cghersbruck/cgh-live-translate/main/.env.example
 ```
 

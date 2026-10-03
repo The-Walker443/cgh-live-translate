@@ -1,9 +1,9 @@
 # Bereitstellung der Live-Uebersetzung mit lokal betriebenem LiveKit.
 #
-# Benoetigte Dateien auf dem Server:
-#   docker-compose.yml   diese Datei
-#   livekit.yaml         Konfiguration des LiveKit-Servers
-#   .env                 Zugangsdaten (Vorlage: .env.example)
+# Benoetigt werden nur zwei Dinge: diese Datei und die Variablen aus .env
+# (Vorlage: .env.example). Bewusst keine zusaetzliche Konfigurationsdatei -
+# LiveKit nimmt seine Konfiguration als Umgebungsvariable entgegen, damit der
+# Stack sich unveraendert in Portainer einfuegen laesst.
 #
 #   docker compose pull && docker compose up -d
 #
@@ -71,17 +71,43 @@ services:
   # SERVICE-Name, nicht container_name - "livekit" waere im geteilten Netz
   # proxy_net aber zu generisch und koennte mit einem anderen Stack kollidieren.
   cgh-livekit:
-    # Bewusst auf die Nebenversion gepinnt statt latest: Ein unbemerkter
-    # Sprung auf eine neue Hauptversion waere am Sonntagmorgen die denkbar
-    # schlechteste Ueberraschung. v1.13 holt weiterhin Fehlerkorrekturen.
+    # Auf die Nebenversion gepinnt statt latest: Ein unbemerkter Sprung auf
+    # eine neue Hauptversion waere am Sonntagmorgen die denkbar schlechteste
+    # Ueberraschung. v1.13 holt weiterhin Fehlerkorrekturen.
     image: livekit/livekit-server:v1.13
     container_name: cgh-livekit
     restart: unless-stopped
-    command: ["--config", "/etc/livekit/livekit.yaml"]
     environment:
       TZ: ${TZ:-Europe/Berlin}
-    volumes:
-      - ./livekit.yaml:/etc/livekit/livekit.yaml:ro
+
+      # Vollstaendige LiveKit-Konfiguration. Die Werte kommen aus der .env,
+      # die Schluessel stehen damit nur an EINER Stelle.
+      LIVEKIT_CONFIG: |
+        port: 7880
+        bind_addresses:
+          - ""
+        rtc:
+          # Ein einziger UDP-Port statt des Standardbereichs 50000-60000.
+          # LiveKit multiplext allen Medienverkehr darueber - das macht die
+          # Portfreigabe im Router zu einer Zeile statt zehntausend.
+          udp_port: 7882
+          # Rueckfallweg, wenn UDP blockiert ist. In Gaeste-WLANs haeufig.
+          tcp_port: 7881
+          # Im Docker-Bridge-Netz kennt der Container nur seine interne
+          # 172er-Adresse. Die nuetzt den Handys nichts, daher muss die
+          # erreichbare Adresse ausdruecklich gesetzt werden.
+          #
+          # ACHTUNG: use_external_ip hat VORRANG. node_ip wirkt nur, wenn
+          # hier ausdruecklich false steht.
+          #   false + node_ip -> Besucher im Haus (der Normalfall)
+          #   true            -> Besucher aus dem Internet
+          use_external_ip: false
+          node_ip: ${LIVEKIT_NODE_IP}
+        keys:
+          "${LIVEKIT_API_KEY}": "${LIVEKIT_API_SECRET}"
+        logging:
+          level: info
+          json: false
     ports:
       # Signalisierung (7880) wird bewusst NICHT veroeffentlicht - die laeuft
       # ueber den Reverse Proxy, der fuer TLS sorgt. Handys verbinden sich
@@ -98,7 +124,7 @@ services:
     cap_drop:
       - ALL
     # Falls LiveKit nicht startet, sind diese beiden Zeilen der erste
-    # Verdacht - sie sind nicht in diesem Aufbau erprobt.
+    # Verdacht - sie sind in diesem Aufbau nicht erprobt.
     read_only: true
     tmpfs:
       - /tmp

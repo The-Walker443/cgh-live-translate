@@ -165,20 +165,21 @@ Die `docker-compose.yml` betreibt LiveKit als eigenen Dienst. Einzurichten sind:
 docker run --rm livekit/livekit-server generate-keys
 ```
 
-Das Ergebnis an zwei Stellen eintragen — sie müssen übereinstimmen, sonst
-werden alle Tokens abgelehnt:
-- `livekit.yaml` im Abschnitt `keys`
-- `.env` als `LIVEKIT_API_KEY` und `LIVEKIT_API_SECRET`
+Das Ergebnis als `LIVEKIT_API_KEY` und `LIVEKIT_API_SECRET` in die `.env`
+eintragen. Beide Dienste bekommen die Werte von dort — eine doppelte Pflege
+gibt es nicht.
 
-**2. `node_ip` in `livekit.yaml` setzen**
+**2. `LIVEKIT_NODE_IP` in der `.env` setzen**
 
-Die feste LAN-Adresse der NAS, etwa `192.168.1.50`. Im Docker-Bridge-Netz kennt
-der Container nur seine interne Adresse (172.x) — die ist für die Besucher
-nutzlos, deshalb muss die richtige ausdrücklich gesetzt werden.
+Die feste LAN-Adresse der NAS, etwa `192.168.1.50`.
 
 > `use_external_ip` hat **Vorrang** vor `node_ip`. Es muss ausdrücklich auf
 > `false` stehen, sonst wird `node_ip` ignoriert und LiveKit meldet den Handys
 > die öffentliche IP. Für Besucher im Haus ist das in der Regel falsch.
+
+Im Docker-Bridge-Netz kennt der Container nur seine interne Adresse (172.x) —
+die ist für die Besucher nutzlos, deshalb muss die richtige ausdrücklich
+gesetzt werden.
 
 **3. Reverse Proxy für die Signalisierung**
 
@@ -235,5 +236,5 @@ zweifach — über LiveKit und über Google. Siehe `ANPASSUNGEN.md`.
 | **Update kommt nicht an**, `pull` sagt „up to date" | In der `.env` steht ein Tag, der nicht mehr gebaut wird — etwa `:gemeinde`. Seit der Umstellung auf „nur `main` veröffentlicht" wird ausschließlich `latest`, `main` und `sha-<commit>` aktualisiert. | `IMAGE=ghcr.io/cghersbruck/cgh-live-translate:latest` setzen, dann `docker compose pull && docker compose up -d --force-recreate` |
 | Hörer verbindet, aber Übersetzung startet nie | Bridge erreicht LiveKit nicht — `LIVEKIT_URL_INTERNAL` fehlt oder zeigt auf die öffentliche Adresse | `LIVEKIT_URL_INTERNAL=ws://cgh-livekit:7880` setzen |
 | Verbindung bricht sofort ab, kein Ton | Reverse Proxy reicht kein WebSocket-Upgrade an `cgh-livekit:7880` durch | Upgrade-Header im Proxy aktivieren |
-| Ton nur im selben WLAN, nicht von außen (oder umgekehrt) | `node_ip` bzw. `use_external_ip` passen nicht zum Nutzungsfall | `livekit.yaml` anpassen, siehe oben |
+| Ton nur im selben WLAN, nicht von außen (oder umgekehrt) | `LIVEKIT_NODE_IP` bzw. `use_external_ip` passen nicht zum Nutzungsfall | `.env` bzw. den `LIVEKIT_CONFIG`-Block in der `docker-compose.yml` anpassen, siehe oben |
 | Container läuft auf altem Stand | Tag unverändert, daher wurde der Container nicht neu erzeugt | `docker compose up -d --force-recreate` |
