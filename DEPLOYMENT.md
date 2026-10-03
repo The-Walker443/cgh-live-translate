@@ -24,7 +24,7 @@ eigene Repository kommt als zusätzliches Remote dazu, damit ein späteres
 git remote rename origin upstream
 
 # Eigenes Repository als neues origin eintragen
-git remote add origin https://github.com/The-Walker443/cgh-live-translate.git
+git remote add origin https://github.com/cghersbruck/cgh-live-translate.git
 
 # Branch gemeinde hochladen
 git push -u origin gemeinde
@@ -35,6 +35,25 @@ git push -u origin gemeinde
 Sobald der Push durch ist, läuft die Action automatisch. Zu sehen unter
 *Actions* im Repository. Beim ersten Lauf dauert sie einige Minuten, weil zwei
 Architekturen gebaut werden (amd64 und arm64) und der Cache noch leer ist.
+
+### Umzug des Repositories (Oktober 2026)
+
+Das Repository ist von `The-Walker443` nach `cghersbruck` umgezogen. Die
+GitHub Action benennt das Image nach dem Repository, **der Image-Pfad hat sich
+damit geändert**:
+
+```
+alt:  ghcr.io/the-walker443/cgh-live-translate
+neu:  ghcr.io/cghersbruck/cgh-live-translate
+```
+
+In der `.env` auf dem Server muss `IMAGE` entsprechend angepasst werden. Der
+alte Pfad bekommt keine neuen Builds mehr — ohne Anpassung bliebe der Server
+still auf altem Stand stehen, genau wie beim eingefrorenen Tag weiter unten.
+
+Beim ersten Build unter dem neuen Namen entsteht ein **neues Paket**, das
+möglicherweise auf privat steht. Dann einmalig die Sichtbarkeit umstellen,
+siehe nächster Abschnitt.
 
 ### Sichtbarkeit des Images
 
@@ -51,7 +70,7 @@ Das Image enthält keine Zugangsdaten; die kommen erst zur Laufzeit aus der
 > und einmalig ausführen:
 >
 > ```bash
-> echo "<token>" | docker login ghcr.io -u The-Walker443 --password-stdin
+> echo "<token>" | docker login ghcr.io -u cghersbruck --password-stdin
 > ```
 
 ---
@@ -65,15 +84,15 @@ mkdir -p /volume1/docker/live-uebersetzung
 cd /volume1/docker/live-uebersetzung
 
 # docker-compose.yml und .env.example aus dem Repository herunterladen
-curl -O https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/docker-compose.yml
-curl -o .env https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/.env.example
+curl -O https://raw.githubusercontent.com/cghersbruck/cgh-live-translate/main/docker-compose.yml
+curl -o .env https://raw.githubusercontent.com/cghersbruck/cgh-live-translate/main/.env.example
 ```
 
 Danach die `.env` ausfüllen. Mindestens:
 
 | Variable | Bedeutung |
 | :--- | :--- |
-| `IMAGE` | `ghcr.io/the-walker443/cgh-live-translate:latest` |
+| `IMAGE` | `ghcr.io/cghersbruck/cgh-live-translate:latest` |
 | `APP_PORT` | Port auf dem Server, Standard 8080 |
 | `LIVEKIT_API_KEY` / `_SECRET` / `_URL` | LiveKit-Zugangsdaten |
 | `GEMINI_API_KEY` | Muss aus einem Paid-Tier-Projekt stammen |
@@ -116,7 +135,7 @@ docker compose pull && docker compose up -d
 
 Die Action schreibt bei jedem Lauf in die Zusammenfassung, welche Tags
 veröffentlicht wurden. Wer nicht immer `latest` will, setzt in der `.env` einen
-festen Tag, etwa `IMAGE=ghcr.io/the-walker443/cgh-live-translate:sha-1a2b3c4`.
+festen Tag, etwa `IMAGE=ghcr.io/cghersbruck/cgh-live-translate:sha-1a2b3c4`.
 
 ---
 
@@ -213,7 +232,7 @@ zweifach — über LiveKit und über Google. Siehe `ANPASSUNGEN.md`.
 | Container läuft, aber nicht erreichbar | Portkonflikt auf dem Server | `APP_PORT` in der `.env` ändern |
 | `no matching manifest` | Falsche CPU-Architektur | Die Action baut amd64 und arm64; prüfen, ob der Lauf durchlief |
 | Hörer bekommt keinen Ton | App per HTTP über LAN-IP aufgerufen | HTTPS einrichten, siehe T-07 |
-| **Update kommt nicht an**, `pull` sagt „up to date" | In der `.env` steht ein Tag, der nicht mehr gebaut wird — etwa `:gemeinde`. Seit der Umstellung auf „nur `main` veröffentlicht" wird ausschließlich `latest`, `main` und `sha-<commit>` aktualisiert. | `IMAGE=ghcr.io/the-walker443/cgh-live-translate:latest` setzen, dann `docker compose pull && docker compose up -d --force-recreate` |
+| **Update kommt nicht an**, `pull` sagt „up to date" | In der `.env` steht ein Tag, der nicht mehr gebaut wird — etwa `:gemeinde`. Seit der Umstellung auf „nur `main` veröffentlicht" wird ausschließlich `latest`, `main` und `sha-<commit>` aktualisiert. | `IMAGE=ghcr.io/cghersbruck/cgh-live-translate:latest` setzen, dann `docker compose pull && docker compose up -d --force-recreate` |
 | Hörer verbindet, aber Übersetzung startet nie | Bridge erreicht LiveKit nicht — `LIVEKIT_URL_INTERNAL` fehlt oder zeigt auf die öffentliche Adresse | `LIVEKIT_URL_INTERNAL=ws://livekit:7880` setzen |
 | Verbindung bricht sofort ab, kein Ton | Reverse Proxy reicht kein WebSocket-Upgrade an `livekit:7880` durch | Upgrade-Header im Proxy aktivieren |
 | Ton nur im selben WLAN, nicht von außen (oder umgekehrt) | `node_ip` bzw. `use_external_ip` passen nicht zum Nutzungsfall | `livekit.yaml` anpassen, siehe oben |

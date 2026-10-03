@@ -35,9 +35,9 @@ jedem Push nach `main` automatisch.
 mkdir -p /volume1/docker/live-uebersetzung
 cd /volume1/docker/live-uebersetzung
 
-curl -O https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/docker-compose.yml
-curl -O https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/livekit.yaml
-curl -o .env https://raw.githubusercontent.com/The-Walker443/cgh-live-translate/main/.env.example
+curl -O https://raw.githubusercontent.com/cghersbruck/cgh-live-translate/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/cghersbruck/cgh-live-translate/main/livekit.yaml
+curl -o .env https://raw.githubusercontent.com/cghersbruck/cgh-live-translate/main/.env.example
 ```
 
 `.env` ausfüllen (siehe unten), dann:
@@ -67,7 +67,7 @@ LiveKit.
 
 | Variable | Bedeutung |
 | :--- | :--- |
-| `IMAGE` | `ghcr.io/the-walker443/cgh-live-translate:latest` |
+| `IMAGE` | `ghcr.io/cghersbruck/cgh-live-translate:latest` |
 | `APP_PORT` | Port auf dem Server (Standard `8080`) |
 | `LIVEKIT_API_KEY` | Zugangsdaten des LiveKit-Servers |
 | `LIVEKIT_API_SECRET` | dito |
